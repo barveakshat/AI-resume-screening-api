@@ -35,7 +35,7 @@ An intelligent resume screening system built with Spring Boot that uses OpenAI's
 
 ### 1. Clone the Repository
 ```bash
-git clone https://github.com/YOUR-USERNAME/resume-screening-api.git
+git clone https://github.com/barveakshat/AI-resume-screening-api.git
 cd resume-screening-api
 ```
 
@@ -124,12 +124,8 @@ This is a personal learning project. Feedback and suggestions are welcome!
 
 **Akshat Barve**
 - Email: barveakshat091@gmail.com
-- LinkedIn: [Your LinkedIn](https://www.linkedin.com/in/akshatbarve/)
-- GitHub: [@YourUsername](https://github.com/barveakshat)
-
-## 🎓 Academic Project
-
-This project is developed as part of my B.Tech curriculum at VIT Bhopal University.
+- [LinkedIn](https://www.linkedin.com/in/akshatbarve/)
+- [GitHub](https://github.com/barveakshat)
 
 ---
 
