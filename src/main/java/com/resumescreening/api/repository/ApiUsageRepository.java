@@ -13,21 +13,20 @@ import java.util.Optional;
 @Repository
 public interface ApiUsageRepository extends JpaRepository<ApiUsage, Long> {
 
-    // Find usage record for user and endpoint
+    // Use user.id instead of userId (navigating the relationship)
     Optional<ApiUsage> findByUserIdAndEndpoint(Long userId, String endpoint);
 
-    // Custom update query for incrementing count
+    // Fixed: Use a.user.id to navigate the relationship
     @Modifying
-    @Query("UPDATE ApiUsage a SET a.requestCount = a.requestCount + 1 WHERE a.userId = :userId AND a.endpoint = :endpoint")
+    @Query("UPDATE ApiUsage a SET a.requestCount = a.requestCount + 1 WHERE a.user.id = :userId AND a.endpoint = :endpoint")
     int incrementRequestCount(@Param("userId") Long userId, @Param("endpoint") String endpoint);
 
-    // Reset count for user/endpoint
+    // Fixed: Use a.user.id
     @Modifying
-    @Query("UPDATE ApiUsage a SET a.requestCount = 0, a.lastReset = :resetTime WHERE a.userId = :userId AND a.endpoint = :endpoint")
+    @Query("UPDATE ApiUsage a SET a.requestCount = 0, a.lastReset = :resetTime WHERE a.user.id = :userId AND a.endpoint = :endpoint")
     int resetUsage(@Param("userId") Long userId,
                    @Param("endpoint") String endpoint,
                    @Param("resetTime") LocalDateTime resetTime);
 
-    // Delete old usage records (cleanup)
     void deleteByLastResetBefore(LocalDateTime cutoffTime);
 }
