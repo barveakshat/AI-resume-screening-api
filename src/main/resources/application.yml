@@ -1,0 +1,19 @@
+spring:
+  application:
+    name: resume-screening-api
+
+  profiles:
+    active: dev
+
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+
+logging:
+  level:
+    root: INFO
+    com.resumescreening.api: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
