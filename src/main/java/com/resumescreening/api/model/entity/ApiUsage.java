@@ -1,7 +1,9 @@
 package com.resumescreening.api.model.entity;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -37,6 +39,8 @@ import java.time.LocalDateTime;
                 )
         }
 )
+@AllArgsConstructor
+@NoArgsConstructor
 public class ApiUsage {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -55,10 +59,6 @@ public class ApiUsage {
     @CreationTimestamp
     @Column(name = "last_reset", nullable = false)
     private LocalDateTime lastReset;  // When counter was last reset
-
-    // Constructors
-    public ApiUsage() {
-    }
 
     public ApiUsage(User user, String endpoint) {
         this.user = user;

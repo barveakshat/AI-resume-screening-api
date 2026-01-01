@@ -1,8 +1,11 @@
 package com.resumescreening.api.model.entity;
 
+import com.resumescreening.api.converter.JsonConverter;
 import com.resumescreening.api.model.enums.Recommendation;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 
@@ -41,6 +44,8 @@ import java.time.LocalDateTime;
                 )
         }
 )
+@AllArgsConstructor
+@NoArgsConstructor
 public class ScreeningResult {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -82,15 +87,13 @@ public class ScreeningResult {
      * Matched skills as JSON array
      * Example: ["Spring Boot", "MySQL", "AWS"]
      */
-    @Column(name = "matched_skills", columnDefinition = "JSONB")
-    private String matchedSkills;
+    @Convert(converter = JsonConverter.class)
+    @Column(columnDefinition = "JSONB")
+    private Object matchedSkills;
 
-    /**
-     * Missing skills as JSON array
-     * Example: ["Microservices", "Kafka", "Docker"]
-     */
-    @Column(name = "missing_skills", columnDefinition = "JSONB")
-    private String missingSkills;
+    @Convert(converter = JsonConverter.class)
+    @Column(columnDefinition = "JSONB")
+    private Object missingSkills;
 
     /**
      * AI-generated strengths
@@ -135,10 +138,6 @@ public class ScreeningResult {
     @CreationTimestamp
     @Column(name = "screened_at", nullable = false, updatable = false)
     private LocalDateTime screenedAt;
-
-    // Constructors
-    public ScreeningResult() {
-    }
 
     public ScreeningResult(JobPosting jobPosting, Resume resume) {
         this.jobPosting = jobPosting;

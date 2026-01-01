@@ -1,10 +1,12 @@
 package com.resumescreening.api.model.entity;
 
+import com.resumescreening.api.converter.JsonConverter;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -33,6 +35,8 @@ import java.util.List;
 @Getter
 @Entity
 @Table(name = "resumes")
+@AllArgsConstructor
+@NoArgsConstructor
 public class Resume {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -75,8 +79,9 @@ public class Resume {
      * - Can index specific fields
      * - Binary storage (compressed)
      */
-    @Column(name = "parsed_data", columnDefinition = "JSONB")
-    private String parsedData;  // We'll store as String, convert to/from JSON as needed
+    @Convert(converter = JsonConverter.class)
+    @Column(columnDefinition = "JSONB")
+    private Object parsedData;
 
     @CreationTimestamp
     @Column(name = "upload_date", nullable = false, updatable = false)
@@ -88,10 +93,6 @@ public class Resume {
      */
     @OneToMany(mappedBy = "resume", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ScreeningResult> screeningResults = new ArrayList<>();
-
-    // Constructors
-    public Resume() {
-    }
 
     public Resume(User user, String fileName, String filePath, String fileType, Long fileSize) {
         this.user = user;

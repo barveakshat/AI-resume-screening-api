@@ -2,7 +2,9 @@ package com.resumescreening.api.model.entity;
 
 import com.resumescreening.api.model.enums.Role;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -27,6 +29,8 @@ import java.util.List;
 @Getter
 @Entity
 @Table(name = "users")
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -86,15 +90,37 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Resume> resumes = new ArrayList<>();
 
-    // Constructors
-    public User() {
+    // ============================================
+    // HELPER METHODS (Optional but useful)
+    // ============================================
+    /**
+     * Helper method to add a job posting.
+     *
+     * BEST PRACTICE: Maintain bidirectional relationship
+     * - Add job to user's list
+     * - Set user on job (so foreign key is saved)
+     *
+     * WHY THIS MATTERS:
+     * - Without this: jobPosting.setUser(user) must be called separately
+     * - With this: user.addJobPosting(job) does both!
+     */
+    public void addJobPosting(JobPosting jobPosting) {
+        jobPostings.add(jobPosting);
+        jobPosting.setUser(this);
     }
 
-    public User(String email, String password, String fullName, Role role) {
-        this.email = email;
-        this.password = password;
-        this.fullName = fullName;
-        this.role = role;
+    public void removeJobPosting(JobPosting jobPosting) {
+        jobPostings.remove(jobPosting);
+        jobPosting.setUser(null);
     }
 
+    public void addResume(Resume resume) {
+        resumes.add(resume);
+        resume.setUser(this);
+    }
+
+    public void removeResume(Resume resume) {
+        resumes.remove(resume);
+        resume.setUser(null);
+    }
 }

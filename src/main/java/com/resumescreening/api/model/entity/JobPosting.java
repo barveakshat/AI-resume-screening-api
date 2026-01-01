@@ -1,9 +1,12 @@
 package com.resumescreening.api.model.entity;
 
+import com.resumescreening.api.converter.StringListConverter;
 import com.resumescreening.api.model.enums.EmploymentType;
 import com.resumescreening.api.model.enums.ExperienceLevel;
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -33,6 +36,8 @@ import java.util.List;
 @Getter
 @Entity
 @Table(name = "job_postings")
+@NoArgsConstructor
+@AllArgsConstructor
 public class JobPosting {
 
     // Getters and Setters
@@ -60,8 +65,10 @@ public class JobPosting {
      * We'll use a custom converter to handle this.
      * Example: ["Spring Boot", "MySQL", "AWS", "Docker"]
      */
-    @Column(name = "required_skills", columnDefinition = "TEXT[]")
-    private List<String> requiredSkills = new ArrayList<>();
+
+    @Convert(converter = StringListConverter.class)
+    @Column(columnDefinition = "TEXT[]")
+    private List<String> requiredSkills;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "experience_level", length = 50)
@@ -94,10 +101,6 @@ public class JobPosting {
      */
     @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<ScreeningResult> screeningResults = new ArrayList<>();
-
-    // Constructors
-    public JobPosting() {
-    }
 
     public JobPosting(User user, String title, String description) {
         this.user = user;
