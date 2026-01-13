@@ -1,28 +1,26 @@
 package com.resumescreening.api;
 
+import com.resumescreening.api.service.S3Service;
+import lombok.RequiredArgsConstructor;
+import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.core.env.Environment;
-import org.springframework.beans.factory.annotation.Autowired;
-import jakarta.annotation.PostConstruct;
 
 @SpringBootApplication
-public class ResumeScreeningApiApplication {
+@RequiredArgsConstructor
+public class ResumeScreeningApiApplication implements CommandLineRunner {
 
-	@Autowired
-	private Environment env;
+	private final S3Service s3Service;
 
 	public static void main(String[] args) {
 		SpringApplication.run(ResumeScreeningApiApplication.class, args);
 	}
 
-	@PostConstruct
-	public void init() {
-		System.out.println("=== AWS Configuration Check ===");
-		System.out.println("Bucket: " + env.getProperty("aws.s3.bucket-name"));
-		System.out.println("Region: " + env.getProperty("aws.s3.region"));
-		System.out.println("Access Key: " + (env.getProperty("aws.s3.access-key") != null ? "Set ✓" : "Missing ✗"));
-		System.out.println("Secret Key: " + (env.getProperty("aws.s3.secret-key") != null ? "Set ✓" : "Missing ✗"));
-		System.out.println("===============================");
+	@Override
+	public void run(String... args) throws Exception {
+		// Test S3 connection
+		System.out.println("Testing S3 connection...");
+		boolean connected = s3Service.fileExists("test-file.txt");
+		System.out.println("S3 Connection: " + (connected ? "File exists" : "Ready to upload"));
 	}
 }
