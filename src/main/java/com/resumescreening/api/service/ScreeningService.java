@@ -40,7 +40,7 @@ public class ScreeningService {
             String aiResponse = openAIService.complete(prompt);
 
             // Parse response
-            String cleanedResponse = cleanJsonResponse(aiResponse);
+            String cleanedResponse = openAIService.cleanJsonResponse(aiResponse);
             ScreeningAnalysis analysis = objectMapper.readValue(
                     cleanedResponse,
                     ScreeningAnalysis.class
@@ -149,7 +149,7 @@ public class ScreeningService {
             return "Not specified";
         }
 
-        ParsedResumeData.Education edu = data.getEducation().get(0);
+        ParsedResumeData.Education edu = data.getEducation().getFirst();
         return String.format("%s from %s (%s)",
                 edu.getDegree() != null ? edu.getDegree() : "Unknown",
                 edu.getInstitution() != null ? edu.getInstitution() : "Unknown",
@@ -169,20 +169,4 @@ public class ScreeningService {
         }
     }
 
-    // Clean JSON response
-    private String cleanJsonResponse(String response) {
-        String cleaned = response.trim();
-
-        if (cleaned.startsWith("```json")) {
-            cleaned = cleaned.substring(7);
-        } else if (cleaned.startsWith("```")) {
-            cleaned = cleaned.substring(3);
-        }
-
-        if (cleaned.endsWith("```")) {
-            cleaned = cleaned.substring(0, cleaned.length() - 3);
-        }
-
-        return cleaned.trim();
-    }
 }

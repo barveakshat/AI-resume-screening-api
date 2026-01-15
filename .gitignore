@@ -108,3 +108,8 @@ spring-boot-devtools.properties
 # Sensitive data files
 secrets/
 credentials/
+
+# Test files
+test-resumes/
+*.pdf
+*.docx

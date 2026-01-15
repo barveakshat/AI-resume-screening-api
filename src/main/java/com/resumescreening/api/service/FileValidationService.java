@@ -64,15 +64,15 @@ public class FileValidationService {
         }
     }
 
-    // Check if file is PDF
-    public boolean isPdf(MultipartFile file) {
-        return "application/pdf".equals(file.getContentType());
-    }
-
-    // Check if file is DOCX
-    public boolean isDocx(MultipartFile file) {
-        String contentType = file.getContentType();
-        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                .equals(contentType);
-    }
+//    Check if file is PDF
+//    public boolean isPdf(MultipartFile file) {
+//        return "application/pdf".equals(file.getContentType());
+//    }
+//
+//    // Check if file is DOCX
+//    public boolean isDocx(MultipartFile file) {
+//        String contentType = file.getContentType();
+//        return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+//                .equals(contentType);
+//    }
 }

@@ -18,7 +18,7 @@ import java.util.List;
 public class TextExtractionService {
 
     // Extract text from PDF
-    public String extractTextFromPdf(InputStream inputStream) throws IOException {
+    public String extractTextFromPdf(InputStream inputStream) {
         try (PDDocument document = Loader.loadPDF(inputStream.readAllBytes())) {
             PDFTextStripper stripper = new PDFTextStripper();
             String text = stripper.getText(document);
@@ -33,7 +33,7 @@ public class TextExtractionService {
     }
 
     // Extract text from DOCX
-    public String extractTextFromDocx(InputStream inputStream) throws IOException {
+    public String extractTextFromDocx(InputStream inputStream) {
         try (XWPFDocument document = new XWPFDocument(inputStream)) {
             StringBuilder text = new StringBuilder();
 

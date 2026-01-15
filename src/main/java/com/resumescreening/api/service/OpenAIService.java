@@ -9,7 +9,6 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
-
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -32,22 +31,20 @@ public class OpenAIService {
         this.objectMapper = objectMapper;
     }
 
-    // Call OpenAI Chat Completions API
+    // Rest of the methods remain the same...
     public String chatCompletion(String systemPrompt, String userPrompt) {
         try {
-            // Build request body
             Map<String, Object> requestBody = new HashMap<>();
             requestBody.put("model", model);
             requestBody.put("messages", List.of(
                     Map.of("role", "system", "content", systemPrompt),
                     Map.of("role", "user", "content", userPrompt)
             ));
-            requestBody.put("temperature", 0.3);  // Lower = more deterministic
+            requestBody.put("temperature", 0.3);
             requestBody.put("max_tokens", 2000);
 
             log.debug("Calling OpenAI API with model: {}", model);
 
-            // Make API call
             String response = webClient.post()
                     .uri("/chat/completions")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
@@ -57,7 +54,6 @@ public class OpenAIService {
                     .bodyToMono(String.class)
                     .block();
 
-            // Parse response
             JsonNode root = objectMapper.readTree(response);
             String content = root.at("/choices/0/message/content").asText();
 
@@ -70,11 +66,27 @@ public class OpenAIService {
         }
     }
 
-    // Simple completion (single prompt)
     public String complete(String prompt) {
         return chatCompletion(
                 "You are a helpful assistant that processes resumes and job descriptions.",
                 prompt
         );
+    }
+
+    public String cleanJsonResponse(String response) {
+        // Remove ```json and ``` markers if present
+        String cleaned = response.trim();
+
+        if (cleaned.startsWith("```json")) {
+            cleaned = cleaned.substring(7);
+        } else if (cleaned.startsWith("```")) {
+            cleaned = cleaned.substring(3);
+        }
+
+        if (cleaned.endsWith("```")) {
+            cleaned = cleaned.substring(0, cleaned.length() - 3);
+        }
+
+        return cleaned.trim();
     }
 }
