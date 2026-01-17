@@ -40,8 +40,8 @@ public class ResumeService {
         resume.setUser(user);
         resume.setFileName(uploadResult.getFileName());
         resume.setFilePath(uploadResult.getFileUrl());
-        resume.setFileType(uploadResult.getFileType());
-        resume.setFileSize(uploadResult.getFileSize());
+        resume.setContentType(uploadResult.getFileType());
+        resume.setExtractedText(uploadResult.getExtractedText());
         resume.setParsedData(parsedData);
 
         resume = resumeRepository.save(resume);

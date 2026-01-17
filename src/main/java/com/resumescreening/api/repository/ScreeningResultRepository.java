@@ -7,44 +7,95 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface ScreeningResultRepository extends JpaRepository<ScreeningResult, Long> {
 
-    // Find all results for a job
-    List<ScreeningResult> findByJobPostingId(Long jobPostingId);
+    /**
+     * Find all screening results for a specific job posting.
+     * Uses JOIN through Application entity.
+     */
+    @Query("SELECT sr FROM ScreeningResult sr WHERE sr.application.jobPosting.id = :jobId")
+    List<ScreeningResult> findByApplicationJobPostingId(@Param("jobId") Long jobId);
 
-    // Find all results for a resume
-    List<ScreeningResult> findByResumeId(Long resumeId);
+    /**
+     * Find screening result by application ID.
+     */
+    Optional<ScreeningResult> findByApplicationId(Long applicationId);
 
-    // Find by job and resume (unique constraint)
-    Optional<ScreeningResult> findByJobPostingIdAndResumeId(Long jobPostingId, Long resumeId);
-
-    // Find by recommendation level
+    /**
+     * ✅ FIXED: Find screening results by job posting and recommendation level.
+     * Must use @Query because we're navigating through relationships.
+     */
+    @Query("SELECT sr FROM ScreeningResult sr " +
+            "WHERE sr.application.jobPosting.id = :jobId " +
+            "AND sr.recommendation = :recommendation " +
+            "ORDER BY sr.matchScore DESC")
     List<ScreeningResult> findByJobPostingIdAndRecommendation(
-            Long jobPostingId,
-            Recommendation recommendation
+            @Param("jobId") Long jobId,
+            @Param("recommendation") Recommendation recommendation
     );
 
-    // Find top candidates (ordered by score)
-    List<ScreeningResult> findByJobPostingIdOrderByOverallScoreDesc(Long jobPostingId);
+    /**
+     * Check if an application already has a screening result.
+     * Prevents duplicate screening.
+     */
+    boolean existsByApplicationId(Long applicationId);
 
-    // Find candidates above score threshold
-    List<ScreeningResult> findByJobPostingIdAndOverallScoreGreaterThanEqual(
-            Long jobPostingId,
-            BigDecimal minScore
+    /**
+     * Count screening results for a job posting.
+     */
+    @Query("SELECT COUNT(sr) FROM ScreeningResult sr WHERE sr.application.jobPosting.id = :jobId")
+    long countByJobPostingId(@Param("jobId") Long jobId);
+
+    /**
+     * Find top N screening results by match score for a job.
+     * Useful for finding best candidates.
+     */
+    @Query("SELECT sr FROM ScreeningResult sr " +
+            "WHERE sr.application.jobPosting.id = :jobId " +
+            "ORDER BY sr.matchScore DESC")
+    List<ScreeningResult> findTopCandidatesByJobPostingId(@Param("jobId") Long jobId);
+
+    /**
+     * ✅ NEW: Get screening results with match score above threshold
+     */
+    @Query("SELECT sr FROM ScreeningResult sr " +
+            "WHERE sr.application.jobPosting.id = :jobId " +
+            "AND sr.matchScore >= :minScore " +
+            "ORDER BY sr.matchScore DESC")
+    List<ScreeningResult> findByJobPostingIdAndMinScore(
+            @Param("jobId") Long jobId,
+            @Param("minScore") Integer minScore
     );
 
-    // Check if screening exists
-    boolean existsByJobPostingIdAndResumeId(Long jobPostingId, Long resumeId);
+    /**
+     * ✅ NEW: Get statistics for a job posting
+     */
+    @Query("SELECT " +
+            "COUNT(sr), " +
+            "AVG(sr.matchScore), " +
+            "MAX(sr.matchScore), " +
+            "MIN(sr.matchScore) " +
+            "FROM ScreeningResult sr " +
+            "WHERE sr.application.jobPosting.id = :jobId")
+    Object[] getStatisticsByJobPostingId(@Param("jobId") Long jobId);
 
-    // Analytics: Average score for a job
-    @Query("SELECT AVG(s.overallScore) FROM ScreeningResult s WHERE s.jobPosting.id = :jobId")
-    BigDecimal getAverageScoreForJob(@Param("jobId") Long jobId);
+    /**
+     * ✅ NEW: Find screening results for a candidate across all jobs
+     */
+    @Query("SELECT sr FROM ScreeningResult sr " +
+            "WHERE sr.application.candidate.id = :candidateId " +
+            "ORDER BY sr.createdAt DESC")
+    List<ScreeningResult> findByCandidateId(@Param("candidateId") Long candidateId);
 
-    // Count results by recommendation
-    long countByJobPostingIdAndRecommendation(Long jobPostingId, Recommendation recommendation);
+    /**
+     * ✅ NEW: Find screening results by recruiter (job owner)
+     */
+    @Query("SELECT sr FROM ScreeningResult sr " +
+            "WHERE sr.application.jobPosting.user.id = :recruiterId " +
+            "ORDER BY sr.createdAt DESC")
+    List<ScreeningResult> findByRecruiterId(@Param("recruiterId") Long recruiterId);
 }

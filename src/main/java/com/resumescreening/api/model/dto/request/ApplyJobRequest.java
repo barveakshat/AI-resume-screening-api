@@ -8,9 +8,13 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ScreeningRequest {
+public class ApplyJobRequest {
 
-    // ✅ CHANGED: Now screens by application ID instead of resume + job
-    @NotNull(message = "Application ID is required")
-    private Long applicationId;
+    @NotNull(message = "Job ID is required")
+    private Long jobId;
+
+    @NotNull(message = "Resume ID is required")
+    private Long resumeId;
+
+    private String coverLetter; // Optional
 }

@@ -36,7 +36,6 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     // Count active jobs for a user
     long countByUserIdAndIsActiveTrue(Long userId);
 
-    // Find with screening results loaded (optimization)
-    @Query("SELECT DISTINCT j FROM JobPosting j LEFT JOIN FETCH j.screeningResults WHERE j.id = :id")
-    Optional<JobPosting> findByIdWithScreeningResults(@Param("id") Long id);
+    @Query("SELECT j FROM JobPosting j LEFT JOIN FETCH j.applications WHERE j.id = :id")
+    Optional<JobPosting> findByIdWithApplications(@Param("id") Long id);
 }

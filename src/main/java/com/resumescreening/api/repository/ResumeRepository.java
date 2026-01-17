@@ -20,7 +20,7 @@ public interface ResumeRepository extends JpaRepository<Resume, Long> {
     Optional<Resume> findByFileName(String fileName);
 
     // Find resumes uploaded in date range
-    List<Resume> findByUploadDateBetween(LocalDateTime start, LocalDateTime end);
+    List<Resume> findByUploadedAtBetween(LocalDateTime start, LocalDateTime end);
 
     // Find resumes with parsed data (not null)
     @Query("SELECT r FROM Resume r WHERE r.parsedData IS NOT NULL")

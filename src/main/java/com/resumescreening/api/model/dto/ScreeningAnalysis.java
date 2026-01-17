@@ -1,31 +1,47 @@
 package com.resumescreening.api.model.dto;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.List;
 
 @Data
-@Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class ScreeningAnalysis {
 
-    private BigDecimal overallScore;
-    private BigDecimal skillMatchScore;
-    private BigDecimal experienceMatchScore;
-    private BigDecimal educationMatchScore;
+    @JsonProperty("overallScore")
+    private BigDecimal overallScore; // 0-100
 
-    private List<String> matchedSkills = new ArrayList<>();
-    private List<String> missingSkills = new ArrayList<>();
+    @JsonProperty("skillMatchScore")
+    private BigDecimal skillMatchScore; // 0-100
 
+    @JsonProperty("experienceMatchScore")
+    private BigDecimal experienceMatchScore; // 0-100
+
+    @JsonProperty("educationMatchScore")
+    private BigDecimal educationMatchScore; // 0-100
+
+    @JsonProperty("matchedSkills")
+    private List<String> matchedSkills;
+
+    @JsonProperty("missingSkills")
+    private List<String> missingSkills;
+
+    @JsonProperty("strengths")
     private String strengths;
-    private String weaknesses;
-    private String summary;
 
-    private List<String> keyHighlights = new ArrayList<>();
+    @JsonProperty("weaknesses")
+    private String weaknesses;
+
+    @JsonProperty("summary")
+    private String summary; // AI analysis summary
+
+    @JsonProperty("keyHighlights")
+    private List<String> keyHighlights;
 }

@@ -90,12 +90,9 @@ public class JobPosting {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    /**
-     * OneToMany: One job can have many screening results
-     * When we screen multiple resumes against this job, each creates a result
-     */
-    @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ScreeningResult> screeningResults = new ArrayList<>();
+    // ✅ CHANGED: Relationship to Applications instead of ScreeningResults
+    @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Application> applications = new ArrayList<>();
 
     public JobPosting(User user, String title, String description) {
         this.user = user;

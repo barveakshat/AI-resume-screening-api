@@ -1,105 +1,63 @@
 package com.resumescreening.api.model.entity;
 
-import com.resumescreening.api.converter.JsonConverter;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Resume entity - represents uploaded resume files.
- *
- * Purpose:
- * - Stores metadata about uploaded resume files
- * - Actual file is stored in AWS S3
- * - parsedData contains extracted information (JSON format)
- *
- * Workflow:
- * 1. User uploads PDF/DOCX file
- * 2. File uploaded to S3 → get URL → save in filePath
- * 3. Extract text from file
- * 4. Send to OpenAI for parsing
- * 5. Store parsed data in parsedData field
- *
- * Relationships:
- * - ManyToOne with User (many resumes belong to one user)
- * - OneToMany with ScreeningResult (one resume can be screened against many jobs)
- */
-@Setter
-@Getter
 @Entity
 @Table(name = "resumes")
-@AllArgsConstructor
+@Getter
+@Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Resume {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * ManyToOne: Many resumes can belong to one user
-     * Both recruiters and candidates can upload resumes
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(name = "file_name", nullable = false, length = 255)
-    private String fileName;  // Original filename: "Akshat_Barve_Resume.pdf"
+    @Column(nullable = false)
+    private String fileName;
 
-    @Column(name = "file_path", nullable = false, length = 500)
-    private String filePath;  // S3 URL: "https://s3.amazonaws.com/.../resume.pdf"
+    @Column
+    private String resumeTitle; // e.g., "Software Engineer Resume - 2025"
 
-    @Column(name = "file_type", length = 50)
-    private String fileType;  // "application/pdf" or "application/vnd.openxmlformats..."
+    @Column(nullable = false)
+    private String filePath;
 
-    @Column(name = "file_size")
-    private Long fileSize;  // Size in bytes
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String extractedText;
 
-    /**
-     * PostgreSQL JSONB column - stores structured data.
-     * Example content:
-     * {
-     *   "fullName": "Akshat Barve",
-     *   "email": "barveakshat091@gmail.com",
-     *   "skills": ["Java", "Spring Boot", "AWS"],
-     *   "experience": [...],
-     *   "education": [...],
-     *   "totalExperienceYears": 0
-     * }
-     *
-     * JSONB is better than JSON because:
-     * - Faster queries
-     * - Can index specific fields
-     * - Binary storage (compressed)
-     */
-    @Convert(converter = JsonConverter.class)
-    @Column(columnDefinition = "JSONB")
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(columnDefinition = "jsonb")
     private Object parsedData;
 
+
+    @Column
+    private Long fileSize;
+
+    @Column
+    private String contentType;
+
+    @OneToMany(mappedBy = "resume", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    private List<Application> applications = new ArrayList<>();
+
     @CreationTimestamp
-    @Column(name = "upload_date", nullable = false, updatable = false)
-    private LocalDateTime uploadDate;
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime uploadedAt;
 
-    /**
-     * OneToMany: One resume can be screened against many jobs
-     * Example: Same resume screened for "Java Dev" and "Full Stack Dev" jobs
-     */
-    @OneToMany(mappedBy = "resume", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<ScreeningResult> screeningResults = new ArrayList<>();
-
-    public Resume(User user, String fileName, String filePath, String fileType, Long fileSize) {
-        this.user = user;
-        this.fileName = fileName;
-        this.filePath = filePath;
-        this.fileType = fileType;
-        this.fileSize = fileSize;
-    }
-
+    @Column
+    private Boolean isPrimary = false; // Mark one resume as primary
 }

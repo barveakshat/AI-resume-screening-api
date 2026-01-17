@@ -1,147 +1,71 @@
 package com.resumescreening.api.model.entity;
 
-import com.resumescreening.api.converter.JsonConverter;
 import com.resumescreening.api.model.enums.Recommendation;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
-/**
- * ScreeningResult entity - stores AI analysis of resume vs job match.
- *
- * Purpose:
- * - After screening a resume against a job, AI generates scores and analysis
- * - This entity stores all that data
- * - Recruiters use this to decide which candidates to interview
- *
- * Scoring:
- * - Overall Score: 0-100 (weighted average of all factors)
- * - Skill Match: How many required skills candidate has
- * - Experience Match: Does experience level match?
- * - Education Match: Does education meet requirements?
- *
- * Relationships:
- * - ManyToOne with JobPosting (many results for one job)
- * - ManyToOne with Resume (many results for one resume)
- * - Unique constraint: One job + one resume = one result only
- */
-
-@Setter
-@Getter
 @Entity
-@Table(
-        name = "screening_results",
-        uniqueConstraints = {
-                @UniqueConstraint(
-                        name = "unique_job_resume",
-                        columnNames = {"job_posting_id", "resume_id"}
-                )
-        }
-)
-@AllArgsConstructor
+@Table(name = "screening_results")
+@Getter
+@Setter
 @NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class ScreeningResult {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * ManyToOne: Many screening results for one job
-     * Example: Job "Java Developer" screened against 10 resumes = 10 results
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "job_posting_id", nullable = false)
-    private JobPosting jobPosting;
+    // ✅ CHANGED: Link to Application instead of Resume and JobPosting separately
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "application_id", nullable = false, unique = true)
+    private Application application;
 
-    /**
-     * ManyToOne: Many screening results for one resume
-     * Example: Resume screened against 5 jobs = 5 results
-     */
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "resume_id", nullable = false)
-    private Resume resume;
+    @Column(nullable = false)
+    private Integer matchScore; // 0-100
 
-    // Scores (all 0-100)
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Recommendation recommendation;
 
-    @Column(name = "overall_score", precision = 5, scale = 2)
-    private BigDecimal overallScore;  // BigDecimal for precise decimal storage
+    @Column(name = "skill_match_score")
+    private Integer skillMatchScore; // 0-100
 
-    @Column(name = "skill_match_score", precision = 5, scale = 2)
-    private BigDecimal skillMatchScore;
+    @Column(name = "experience_match_score")
+    private Integer experienceMatchScore; // 0-100
 
-    @Column(name = "experience_match_score", precision = 5, scale = 2)
-    private BigDecimal experienceMatchScore;
+    @Column(name = "education_match_score")
+    private Integer educationMatchScore;
 
-    @Column(name = "education_match_score", precision = 5, scale = 2)
-    private BigDecimal educationMatchScore;
+    @ElementCollection
+    @CollectionTable(name = "matched_skills", joinColumns = @JoinColumn(name = "screening_result_id"))
+    @Column(name = "skill")
+    private List<String> matchedSkills = new ArrayList<>();
 
-    // Detailed Analysis (stored as JSON text)
+    @ElementCollection
+    @CollectionTable(name = "missing_skills", joinColumns = @JoinColumn(name = "screening_result_id"))
+    @Column(name = "skill")
+    private List<String> missingSkills = new ArrayList<>();
 
-    /**
-     * Matched skills as JSON array
-     * Example: ["Spring Boot", "MySQL", "AWS"]
-     */
-    @Convert(converter = JsonConverter.class)
-    @Column(columnDefinition = "JSONB")
-    private Object matchedSkills;
-
-    @Convert(converter = JsonConverter.class)
-    @Column(columnDefinition = "JSONB")
-    private Object missingSkills;
-
-    /**
-     * AI-generated strengths
-     * Example: "Strong foundational knowledge of Spring Boot ecosystem..."
-     */
     @Column(columnDefinition = "TEXT")
     private String strengths;
 
-    /**
-     * AI-generated weaknesses
-     * Example: "No professional work experience. Limited microservices exposure..."
-     */
     @Column(columnDefinition = "TEXT")
     private String weaknesses;
 
-    /**
-     * AI-generated summary (2-3 sentences)
-     * Example: "Akshat shows promise as an entry-level hire with solid..."
-     */
-    @Column(name = "ai_summary", columnDefinition = "TEXT")
-    private String aiSummary;
-
-    /**
-     * Final recommendation based on overall score
-     * - STRONG_FIT: >= 80
-     * - GOOD_FIT: >= 60
-     * - MODERATE_FIT: >= 40
-     * - POOR_FIT: < 40
-     */
-    @Enumerated(EnumType.STRING)
-    @Column(length = 50)
-    private Recommendation recommendation;
-
-    /**
-     * How long screening took (in milliseconds)
-     * Used for performance monitoring
-     * Example: 4200 = 4.2 seconds
-     */
-    @Column(name = "processing_time_ms")
-    private Integer processingTimeMs;
+    @Column(columnDefinition = "TEXT")
+    private String aiAnalysis;
 
     @CreationTimestamp
-    @Column(name = "screened_at", nullable = false, updatable = false)
-    private LocalDateTime screenedAt;
+    @Column(nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-    public ScreeningResult(JobPosting jobPosting, Resume resume) {
-        this.jobPosting = jobPosting;
-        this.resume = resume;
-    }
-
+    @Column(name = "processing_time_ms")
+    private Long processingTimeMs;
 }

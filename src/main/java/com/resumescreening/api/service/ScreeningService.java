@@ -4,9 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resumescreening.api.exception.ResourceNotFoundException;
 import com.resumescreening.api.model.dto.ParsedResumeData;
 import com.resumescreening.api.model.dto.ScreeningAnalysis;
+import com.resumescreening.api.model.entity.Application;
 import com.resumescreening.api.model.entity.JobPosting;
 import com.resumescreening.api.model.entity.Resume;
 import com.resumescreening.api.model.entity.ScreeningResult;
+import com.resumescreening.api.model.entity.User;
+import com.resumescreening.api.model.enums.ApplicationStatus;
 import com.resumescreening.api.model.enums.Recommendation;
 import com.resumescreening.api.repository.ScreeningResultRepository;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -26,15 +30,28 @@ public class ScreeningService {
 
     private final OpenAIService openAIService;
     private final ScreeningResultRepository screeningRepository;
+    private final ApplicationService applicationService;
     private final ObjectMapper objectMapper;
 
-    // Screen resume against job posting
+    /**
+     * ✅ NEW: Screen a single application
+     */
     @Transactional
-    public ScreeningResult screenResume(JobPosting job, Resume resume) {
+    public ScreeningResult screenApplication(Application application) {
         long startTime = System.currentTimeMillis();
 
         try {
-            log.info("Screening resume {} for job {}", resume.getId(), job.getId());
+            // Check if already screened
+            if (screeningRepository.existsByApplicationId(application.getId())) {
+                throw new IllegalStateException("This application has already been screened");
+            }
+
+            log.info("Screening application {} for job {}",
+                    application.getId(),
+                    application.getJobPosting().getId());
+
+            JobPosting job = application.getJobPosting();
+            Resume resume = application.getResume();
 
             // Build screening prompt
             String prompt = buildScreeningPrompt(job, resume);
@@ -49,81 +66,75 @@ public class ScreeningService {
                     ScreeningAnalysis.class
             );
 
-            // Create screening result
+            // Calculate processing time
+            long processingTime = System.currentTimeMillis() - startTime;
+
+            // Create screening result with ALL fields
             ScreeningResult result = new ScreeningResult();
-            result.setJobPosting(job);
-            result.setResume(resume);
-            result.setOverallScore(analysis.getOverallScore());
-            result.setSkillMatchScore(analysis.getSkillMatchScore());
-            result.setExperienceMatchScore(analysis.getExperienceMatchScore());
-            result.setEducationMatchScore(analysis.getEducationMatchScore());
-            result.setMatchedSkills(objectMapper.valueToTree(analysis.getMatchedSkills()));
-            result.setMissingSkills(objectMapper.valueToTree(analysis.getMissingSkills()));
+            result.setApplication(application);
+
+            // Set all scores
+            result.setMatchScore(analysis.getOverallScore().intValue());
+            result.setSkillMatchScore(analysis.getSkillMatchScore() != null ?
+                    analysis.getSkillMatchScore().intValue() : null);
+            result.setExperienceMatchScore(analysis.getExperienceMatchScore() != null ?
+                    analysis.getExperienceMatchScore().intValue() : null);
+            result.setEducationMatchScore(analysis.getEducationMatchScore() != null ?
+                    analysis.getEducationMatchScore().intValue() : null);
+
+            result.setRecommendation(determineRecommendation(analysis.getOverallScore()));
+
+            // Set skills
+            result.setMatchedSkills(analysis.getMatchedSkills());
+            result.setMissingSkills(analysis.getMissingSkills());
+
+            // Set analysis
             result.setStrengths(analysis.getStrengths());
             result.setWeaknesses(analysis.getWeaknesses());
-            result.setAiSummary(analysis.getSummary());
-            result.setRecommendation(determineRecommendation(analysis.getOverallScore()));
-            result.setProcessingTimeMs((int)(System.currentTimeMillis() - startTime));
-            result.setScreenedAt(LocalDateTime.now());
+            result.setAiAnalysis(analysis.getSummary());
+
+            // Set metadata
+            result.setProcessingTimeMs(processingTime);
 
             // Save to database
             result = screeningRepository.save(result);
 
-            log.info("Screening completed: Score={}, Recommendation={}",
-                    result.getOverallScore(), result.getRecommendation());
+            // Update application status
+            application.setStatus(ApplicationStatus.UNDER_REVIEW);
+            application.setScreenedAt(LocalDateTime.now());
+
+            log.info("Screening completed: Score={}, Recommendation={}, Time={}ms",
+                    result.getMatchScore(), result.getRecommendation(), processingTime);
 
             return result;
 
         } catch (Exception e) {
-            log.error("Error screening resume: {}", e.getMessage(), e);
-            throw new RuntimeException("Failed to screen resume", e);
+            log.error("Error screening application: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to screen application", e);
         }
     }
 
-    // Get screening result by ID
-    public ScreeningResult getScreeningResult(Long screeningId) {
-        return screeningRepository.findById(screeningId)
-                .orElseThrow(() -> new ResourceNotFoundException("Screening result not found: " + screeningId));
-    }
-
-    // Get all screening results for a job
-    public List<ScreeningResult> getScreeningResultsForJob(Long jobId) {
-        return screeningRepository.findByJobPostingId(jobId);
-    }
-
-    // Get screening results sorted by score (top candidates)
-    public List<ScreeningResult> getTopCandidates(Long jobId) {
-        return screeningRepository.findByJobPostingIdOrderByOverallScoreDesc(jobId);
-    }
-
-    // Get screening results by recommendation
-    public List<ScreeningResult> getCandidatesByRecommendation(Long jobId, Recommendation recommendation) {
-        return screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation);
-    }
-
-    // Check if screening exists
-    public boolean screeningExists(Long jobId, Long resumeId) {
-        return screeningRepository.existsByJobPostingIdAndResumeId(jobId, resumeId);
-    }
-
-    // Batch screen multiple resumes
+    /**
+     * ✅ NEW: Batch screen all applications for a job
+     */
     @Transactional
-    public List<ScreeningResult> batchScreenResumes(JobPosting job, List<Resume> resumes) {
-        log.info("Batch screening {} resumes for job {}", resumes.size(), job.getId());
+    public List<ScreeningResult> batchScreenApplications(Long jobId, User recruiter) {
+        log.info("Batch screening applications for job {}", jobId);
 
+        List<Application> applications = applicationService.getApplicationsForJob(jobId, recruiter);
         List<ScreeningResult> results = new ArrayList<>();
 
-        for (Resume resume : resumes) {
+        for (Application application : applications) {
             try {
                 // Skip if already screened
-                if (!screeningExists(job.getId(), resume.getId())) {
-                    ScreeningResult result = screenResume(job, resume);
+                if (!screeningRepository.existsByApplicationId(application.getId())) {
+                    ScreeningResult result = screenApplication(application);
                     results.add(result);
                 } else {
-                    log.info("Skipping already screened resume: {}", resume.getId());
+                    log.info("Skipping already screened application: {}", application.getId());
                 }
             } catch (Exception e) {
-                log.error("Error screening resume {}: {}", resume.getId(), e.getMessage());
+                log.error("Error screening application {}: {}", application.getId(), e.getMessage());
             }
         }
 
@@ -131,18 +142,103 @@ public class ScreeningService {
         return results;
     }
 
-    // Get average score for a job
-    public BigDecimal getAverageScoreForJob(Long jobId) {
-        BigDecimal avgScore = screeningRepository.getAverageScoreForJob(jobId);
-        return avgScore != null ? avgScore : BigDecimal.ZERO;
+    /**
+     * Get screening result by ID
+     */
+    public ScreeningResult getScreeningResult(Long screeningId) {
+        return screeningRepository.findById(screeningId)
+                .orElseThrow(() -> new ResourceNotFoundException("Screening result not found: " + screeningId));
     }
 
-    // Count screening results by recommendation
+    /**
+     * ✅ UPDATED: Get all screening results for a job (through applications)
+     */
+    public List<ScreeningResult> getScreeningResultsByJobId(Long jobId) {
+        return screeningRepository.findByApplicationJobPostingId(jobId);
+    }
+
+    /**
+     * ✅ NEW: Get top candidates for a job
+     */
+    public List<ScreeningResult> getTopCandidates(Long jobId) {
+        List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
+        return results.stream()
+                .sorted((r1, r2) -> Integer.compare(r2.getMatchScore(), r1.getMatchScore()))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get candidates by recommendation level
+     */
+    public List<ScreeningResult> getCandidatesByRecommendation(Long jobId, Recommendation recommendation) {
+        return screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation);
+    }
+
+    /**
+     * ✅ UPDATED: Check if application is already screened
+     */
+    public boolean applicationAlreadyScreened(Long applicationId) {
+        return screeningRepository.existsByApplicationId(applicationId);
+    }
+
+    /**
+     * ✅ NEW: Get screening statistics for a job
+     */
+    public ScreeningStatistics getScreeningStatistics(Long jobId) {
+        List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
+
+        long totalScreened = results.size();
+        long strongFit = results.stream()
+                .filter(r -> r.getRecommendation() == Recommendation.STRONG_FIT)
+                .count();
+        long goodFit = results.stream()
+                .filter(r -> r.getRecommendation() == Recommendation.GOOD_FIT)
+                .count();
+        long moderateFit = results.stream()
+                .filter(r -> r.getRecommendation() == Recommendation.MODERATE_FIT)
+                .count();
+        long poorFit = results.stream()
+                .filter(r -> r.getRecommendation() == Recommendation.POOR_FIT)
+                .count();
+
+        double averageScore = results.stream()
+                .mapToInt(ScreeningResult::getMatchScore)
+                .average()
+                .orElse(0.0);
+
+        return new ScreeningStatistics(
+                totalScreened,
+                strongFit,
+                goodFit,
+                moderateFit,
+                poorFit,
+                averageScore
+        );
+    }
+
+    /**
+     * ✅ NEW: Get average score for a job
+     */
+    public double getAverageScoreForJob(Long jobId) {
+        List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
+        return results.stream()
+                .mapToInt(ScreeningResult::getMatchScore)
+                .average()
+                .orElse(0.0);
+    }
+
+    /**
+     * Count screening results by recommendation
+     */
     public long countByRecommendation(Long jobId, Recommendation recommendation) {
-        return screeningRepository.countByJobPostingIdAndRecommendation(jobId, recommendation);
+        return getCandidatesByRecommendation(jobId, recommendation).size();
     }
 
-    // Build screening prompt
+    // ==================== PRIVATE HELPER METHODS ====================
+
+    /**
+     * Build screening prompt for AI
+     */
     private String buildScreeningPrompt(JobPosting job, Resume resume) {
         // Get parsed resume data
         ParsedResumeData parsedData = extractParsedData(resume);
@@ -195,7 +291,9 @@ public class ScreeningService {
         );
     }
 
-    // Extract parsed data from resume
+    /**
+     * Extract parsed data from resume
+     */
     private ParsedResumeData extractParsedData(Resume resume) {
         try {
             if (resume.getParsedData() == null) {
@@ -208,20 +306,24 @@ public class ScreeningService {
         }
     }
 
-    // Format education for prompt
+    /**
+     * Format education for prompt
+     */
     private String formatEducation(ParsedResumeData data) {
         if (data.getEducation() == null || data.getEducation().isEmpty()) {
             return "Not specified";
         }
 
-        ParsedResumeData.Education edu = data.getEducation().getFirst();
+        ParsedResumeData.Education edu = data.getEducation().get(0);
         return String.format("%s from %s (%s)",
                 edu.getDegree() != null ? edu.getDegree() : "Unknown",
                 edu.getInstitution() != null ? edu.getInstitution() : "Unknown",
                 edu.getYear() != null ? edu.getYear() : "Unknown");
     }
 
-    // Determine recommendation based on score
+    /**
+     * Determine recommendation based on score
+     */
     private Recommendation determineRecommendation(BigDecimal score) {
         if (score.compareTo(new BigDecimal("80")) >= 0) {
             return Recommendation.STRONG_FIT;
@@ -233,4 +335,16 @@ public class ScreeningService {
             return Recommendation.POOR_FIT;
         }
     }
+
+    /**
+     * DTO for screening statistics
+     */
+    public record ScreeningStatistics(
+            long totalScreened,
+            long strongFit,
+            long goodFit,
+            long moderateFit,
+            long poorFit,
+            double averageScore
+    ) {}
 }

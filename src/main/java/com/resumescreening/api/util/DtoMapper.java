@@ -59,31 +59,53 @@ public class DtoMapper {
                 .id(resume.getId())
                 .fileName(resume.getFileName())
                 .filePath(resume.getFilePath())
-                .fileType(resume.getFileType())
+                .fileType(resume.getContentType())
                 .fileSize(resume.getFileSize())
                 .parsedData(parsedData)
-                .uploadDate(resume.getUploadDate())
+                .uploadDate(resume.getUploadedAt())
                 .build();
     }
 
     // ScreeningResult to ScreeningResultResponse
     public static ScreeningResultResponse toScreeningResultResponse(ScreeningResult result) {
+        if (result == null) {
+            return null;
+        }
+
+        Application application = result.getApplication();
+        Resume resume = application.getResume();
+        User candidate = application.getCandidate();
+
         return ScreeningResultResponse.builder()
                 .id(result.getId())
-                .jobPostingId(result.getJobPosting().getId())
-                .resumeId(result.getResume().getId())
-                .overallScore(result.getOverallScore())
+                .applicationId(application.getId())
+                .jobPostingId(application.getJobPosting().getId())
+                .jobTitle(application.getJobPosting().getTitle())
+                .resumeId(resume.getId())
+                .candidateName(candidate.getFullName())
+                .candidateEmail(candidate.getEmail())
+
+                // Scores
+                .matchScore(result.getMatchScore())
                 .skillMatchScore(result.getSkillMatchScore())
                 .experienceMatchScore(result.getExperienceMatchScore())
                 .educationMatchScore(result.getEducationMatchScore())
-                .matchedSkills(convertJsonToList(result.getMatchedSkills()))
-                .missingSkills(convertJsonToList(result.getMissingSkills()))
+
+                .recommendation(result.getRecommendation())
+
+                // Skills
+                .matchedSkills(result.getMatchedSkills())
+                .missingSkills(result.getMissingSkills())
+
+                // Analysis
                 .strengths(result.getStrengths())
                 .weaknesses(result.getWeaknesses())
-                .aiSummary(result.getAiSummary())
-                .recommendation(result.getRecommendation())
+                .aiAnalysis(result.getAiAnalysis())
+
+                // Metadata
                 .processingTimeMs(result.getProcessingTimeMs())
-                .screenedAt(result.getScreenedAt())
+                .screenedAt(application.getScreenedAt())
+                .createdAt(result.getCreatedAt())
                 .build();
     }
 
@@ -101,5 +123,24 @@ public class DtoMapper {
         } catch (Exception e) {
             return java.util.Collections.emptyList();
         }
+    }
+
+    public static ApplicationResponse toApplicationResponse(Application application) {
+        return ApplicationResponse.builder()
+                .id(application.getId())
+                .jobId(application.getJobPosting().getId())
+                .jobTitle(application.getJobPosting().getTitle())
+                .candidateId(application.getCandidate().getId())
+                .candidateName(application.getCandidate().getFullName())
+                .candidateEmail(application.getCandidate().getEmail())
+                .resumeId(application.getResume().getId())
+                .resumeTitle(application.getResume().getResumeTitle())
+                .status(application.getStatus())
+                .coverLetter(application.getCoverLetter())
+                .appliedAt(application.getAppliedAt())
+                .screenedAt(application.getScreenedAt())
+                .screeningResult(application.getScreeningResult() != null ?
+                        toScreeningResultResponse(application.getScreeningResult()) : null)
+                .build();
     }
 }
