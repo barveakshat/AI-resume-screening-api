@@ -1,6 +1,7 @@
 package com.resumescreening.api.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resumescreening.api.exception.ResourceNotFoundException;
 import com.resumescreening.api.model.dto.ParsedResumeData;
 import com.resumescreening.api.model.dto.ScreeningAnalysis;
 import com.resumescreening.api.model.entity.JobPosting;
@@ -15,6 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -75,6 +78,68 @@ public class ScreeningService {
             log.error("Error screening resume: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to screen resume", e);
         }
+    }
+
+    // Get screening result by ID
+    public ScreeningResult getScreeningResult(Long screeningId) {
+        return screeningRepository.findById(screeningId)
+                .orElseThrow(() -> new ResourceNotFoundException("Screening result not found: " + screeningId));
+    }
+
+    // Get all screening results for a job
+    public List<ScreeningResult> getScreeningResultsForJob(Long jobId) {
+        return screeningRepository.findByJobPostingId(jobId);
+    }
+
+    // Get screening results sorted by score (top candidates)
+    public List<ScreeningResult> getTopCandidates(Long jobId) {
+        return screeningRepository.findByJobPostingIdOrderByOverallScoreDesc(jobId);
+    }
+
+    // Get screening results by recommendation
+    public List<ScreeningResult> getCandidatesByRecommendation(Long jobId, Recommendation recommendation) {
+        return screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation);
+    }
+
+    // Check if screening exists
+    public boolean screeningExists(Long jobId, Long resumeId) {
+        return screeningRepository.existsByJobPostingIdAndResumeId(jobId, resumeId);
+    }
+
+    // Batch screen multiple resumes
+    @Transactional
+    public List<ScreeningResult> batchScreenResumes(JobPosting job, List<Resume> resumes) {
+        log.info("Batch screening {} resumes for job {}", resumes.size(), job.getId());
+
+        List<ScreeningResult> results = new ArrayList<>();
+
+        for (Resume resume : resumes) {
+            try {
+                // Skip if already screened
+                if (!screeningExists(job.getId(), resume.getId())) {
+                    ScreeningResult result = screenResume(job, resume);
+                    results.add(result);
+                } else {
+                    log.info("Skipping already screened resume: {}", resume.getId());
+                }
+            } catch (Exception e) {
+                log.error("Error screening resume {}: {}", resume.getId(), e.getMessage());
+            }
+        }
+
+        log.info("Batch screening completed: {} results", results.size());
+        return results;
+    }
+
+    // Get average score for a job
+    public BigDecimal getAverageScoreForJob(Long jobId) {
+        BigDecimal avgScore = screeningRepository.getAverageScoreForJob(jobId);
+        return avgScore != null ? avgScore : BigDecimal.ZERO;
+    }
+
+    // Count screening results by recommendation
+    public long countByRecommendation(Long jobId, Recommendation recommendation) {
+        return screeningRepository.countByJobPostingIdAndRecommendation(jobId, recommendation);
     }
 
     // Build screening prompt
@@ -168,5 +233,4 @@ public class ScreeningService {
             return Recommendation.POOR_FIT;
         }
     }
-
 }
