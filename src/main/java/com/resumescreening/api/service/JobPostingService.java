@@ -138,7 +138,7 @@ public class JobPostingService {
 
     // Search jobs by skill
     public List<JobPosting> findJobsBySkill(String skill) {
-        return jobPostingRepository.findByRequiredSkill(skill);
+        return jobPostingRepository.findByRequiredSkillsContaining(skill);
     }
 
     // Validate job ownership

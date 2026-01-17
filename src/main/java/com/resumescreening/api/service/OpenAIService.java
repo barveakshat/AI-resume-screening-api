@@ -26,12 +26,13 @@ public class OpenAIService {
     @Value("${openai.api.model}")
     private String model;
 
-    public OpenAIService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper) {
-        this.webClient = webClientBuilder.baseUrl("https://api.openai.com/v1").build();
+    public OpenAIService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper,
+                         @Value("${openai.api.url}") String baseUrl) {
+        // Use the base URL from config (OpenRouter URL)
+        this.webClient = webClientBuilder.baseUrl(baseUrl).build();
         this.objectMapper = objectMapper;
     }
 
-    // Rest of the methods remain the same...
     public String chatCompletion(String systemPrompt, String userPrompt) {
         try {
             Map<String, Object> requestBody = new HashMap<>();
@@ -46,7 +47,7 @@ public class OpenAIService {
             log.debug("Calling OpenAI API with model: {}", model);
 
             String response = webClient.post()
-                    .uri("/chat/completions")
+                    .uri("") // Empty since we're using the full base URL
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(requestBody)
@@ -74,7 +75,6 @@ public class OpenAIService {
     }
 
     public String cleanJsonResponse(String response) {
-        // Remove ```json and ``` markers if present
         String cleaned = response.trim();
 
         if (cleaned.startsWith("```json")) {

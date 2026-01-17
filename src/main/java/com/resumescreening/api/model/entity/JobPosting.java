@@ -60,14 +60,9 @@ public class JobPosting {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;  // Full job description
 
-    /**
-     * PostgreSQL array type for storing multiple skills.
-     * We'll use a custom converter to handle this.
-     * Example: ["Spring Boot", "MySQL", "AWS", "Docker"]
-     */
 
     @Convert(converter = StringListConverter.class)
-    @Column(columnDefinition = "TEXT[]")
+    @Column(columnDefinition = "TEXT")
     private List<String> requiredSkills;
 
     @Enumerated(EnumType.STRING)

@@ -27,9 +27,10 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     // Find by experience level
     List<JobPosting> findByExperienceLevel(ExperienceLevel level);
 
-    // Custom query - find jobs by skill (searches in array)
-    @Query(value = "SELECT * FROM job_postings j WHERE :skill = ANY(j.required_skills)", nativeQuery = true)
-    List<JobPosting> findByRequiredSkill(@Param("skill") String skill);
+    // find jobs by skill
+    List<JobPosting> findByRequiredSkillsContaining(String skill);
+
+
 
 
     // Count active jobs for a user

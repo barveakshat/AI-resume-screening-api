@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -29,7 +30,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity(prePostEnabled = true) // ✅ Enable @PreAuthorize
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -37,13 +38,14 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthEntryPoint;
     private final UserDetailsService userDetailsService;
 
-    // Password encoder bean
+    @Value("${cors.allowed-origins}")
+    private String allowedOrigins;
+
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        return new BCryptPasswordEncoder(12); // ✅ Strength 12 for better security
     }
 
-    // Authentication provider
     @Bean
     public AuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider(userDetailsService);
@@ -51,27 +53,38 @@ public class SecurityConfig {
         return authProvider;
     }
 
-    // Authentication manager
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
         return config.getAuthenticationManager();
     }
 
-
-    // CORS configuration
-    @Value("${cors.allowed-origins}")
-    private String allowedOrigins;
-
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
-        // Split comma-separated origins from environment variable
+        // Parse allowed origins
         List<String> origins = Arrays.asList(allowedOrigins.split(","));
         configuration.setAllowedOrigins(origins);
 
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("*"));
+        // ✅ Specify allowed methods explicitly
+        configuration.setAllowedMethods(Arrays.asList(
+                "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+        ));
+
+        // ✅ Specify allowed headers explicitly (avoid "*" in production)
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "Accept",
+                "X-Requested-With"
+        ));
+
+        // ✅ Expose headers that frontend needs
+        configuration.setExposedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Disposition"
+        ));
+
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 
@@ -80,42 +93,49 @@ public class SecurityConfig {
         return source;
     }
 
-    // Main security filter chain
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                // Disable CSRF (not needed for stateless JWT API)
+                // ✅ Disable CSRF (OK for stateless JWT API)
                 .csrf(AbstractHttpConfigurer::disable)
 
-                // Configure CORS
+                // ✅ Configure CORS
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                // Configure authorization
+                // ✅ Configure authorization rules
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints (no authentication required)
-                        .requestMatchers(
-                                "/api/v1/auth/**",           // Login, register, refresh
-                                "/api/test/**",              // Test endpoints
-                                "/error",                    // Error handling
-                                "/actuator/health"           // Health check
-                        ).permitAll()
+                        // Public endpoints
+                        .requestMatchers("/api/v1/auth/**").permitAll()
 
-                        // All other endpoints require authentication
+                        // Job endpoints - view only for public
+                        .requestMatchers(HttpMethod.GET, "/api/v1/jobs").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/v1/jobs/{id}").permitAll()
+
+                        // ✅ Resume endpoints - authenticated users only
+                        .requestMatchers("/api/v1/resumes/**").authenticated()
+
+                        // ✅ Screening endpoints - authenticated users only
+                        .requestMatchers("/api/v1/screening/**").authenticated()
+
+                        // ✅ Analytics endpoints - authenticated users only
+                        .requestMatchers("/api/v1/analytics/**").authenticated()
+
+                        // All other requests require authentication
                         .anyRequest().authenticated()
                 )
 
-                // Stateless session (don't create sessions)
+                // ✅ Stateless session management
                 .sessionManagement(session -> session
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
 
-                // Authentication provider
+                // ✅ Set authentication provider
                 .authenticationProvider(authenticationProvider())
 
-                // Add JWT filter before Spring Security's filter
+                // ✅ Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // Configure exception handling
+                // ✅ Configure exception handling
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint(jwtAuthEntryPoint)
                 );
