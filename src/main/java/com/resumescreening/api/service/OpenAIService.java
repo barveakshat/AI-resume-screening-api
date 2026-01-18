@@ -46,9 +46,11 @@ public class OpenAIService {
 
             log.debug("Calling OpenAI API with model: {}", model);
 
+
             String response = webClient.post()
                     .uri("") // Empty since we're using the full base URL
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
+                    .header("HTTP-Referer", "http://localhost:8080")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(requestBody)
                     .retrieve()

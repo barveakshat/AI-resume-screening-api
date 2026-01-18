@@ -81,7 +81,7 @@ public class JobPostingController {
     }
 
     // Get all active jobs (paginated) - anyone can view
-    @GetMapping
+    @GetMapping("/search")
     public ResponseEntity<ApiResponse<Page<JobPostingResponse>>> getAllJobs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,

@@ -1,5 +1,6 @@
 package com.resumescreening.api.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.ResumeResponse;
 import com.resumescreening.api.model.entity.Resume;
@@ -30,7 +31,7 @@ public class ResumeController {
     public ResponseEntity<ApiResponse<ResumeResponse>> uploadResume(
             @RequestParam("file") MultipartFile file,
             Authentication authentication
-    ) {
+    ) throws JsonProcessingException {
         User user = userService.findByEmail(authentication.getName())
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
@@ -44,7 +45,7 @@ public class ResumeController {
     }
 
     // Get all resumes for current user
-    @GetMapping
+    @GetMapping("/my-resumes")
     public ResponseEntity<ApiResponse<List<ResumeResponse>>> getMyResumes(
             Authentication authentication
     ) {

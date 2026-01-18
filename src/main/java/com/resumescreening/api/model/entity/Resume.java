@@ -1,11 +1,13 @@
 package com.resumescreening.api.model.entity;
 
+import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
+import java.lang.reflect.Type;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -36,13 +38,12 @@ public class Resume {
     @Column(nullable = false)
     private String filePath;
 
-    @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "extracted_text", columnDefinition = "TEXT")
     private String extractedText;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
-    private Object parsedData;
+    private String parsedData;
 
 
     @Column

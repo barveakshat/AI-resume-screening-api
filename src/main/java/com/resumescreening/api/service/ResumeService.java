@@ -1,5 +1,7 @@
 package com.resumescreening.api.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resumescreening.api.exception.ResourceNotFoundException;
 import com.resumescreening.api.model.dto.ParsedResumeData;
 import com.resumescreening.api.model.entity.Resume;
@@ -10,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.util.List;
 
 @Service
@@ -22,19 +23,20 @@ public class ResumeService {
     private final UserService userService;
     private final FileStorageService fileStorageService;
     private final ResumeParserService resumeParserService;
+    private final ObjectMapper objectMapper;
 
 
     // Upload and parse resume
     @Transactional
-    public Resume uploadResume(Long userId, MultipartFile file) {
+    public Resume uploadResume(Long userId, MultipartFile file) throws JsonProcessingException {
         User user = userService.getUserById(userId);
-
         // Upload file and extract text
         FileStorageService.FileUploadResult uploadResult = fileStorageService.storeResume(file);
 
         // Parse resume with AI
         ParsedResumeData parsedData = resumeParserService.parseResume(uploadResult.getExtractedText());
 
+        String parsedDataJson = objectMapper.writeValueAsString(parsedData);
         // Create resume entity
         Resume resume = new Resume();
         resume.setUser(user);
@@ -42,10 +44,10 @@ public class ResumeService {
         resume.setFilePath(uploadResult.getFileUrl());
         resume.setContentType(uploadResult.getFileType());
         resume.setExtractedText(uploadResult.getExtractedText());
-        resume.setParsedData(parsedData);
+        resume.setParsedData(parsedDataJson);
+
 
         resume = resumeRepository.save(resume);
-
         log.info("Resume uploaded and parsed: {} for user {}", resume.getId(), userId);
         return resume;
     }
@@ -69,8 +71,16 @@ public class ResumeService {
         if (resume.getParsedData() == null) {
             throw new IllegalStateException("Resume has not been parsed yet");
         }
-
-        return (ParsedResumeData) resume.getParsedData();
+        try {
+            Object parsedDataObj = resume.getParsedData();
+            // Hibernate returns a Map when using @JdbcTypeCode(SqlTypes.JSON)
+            // Convert it back to ParsedResumeData
+            String jsonString = objectMapper.writeValueAsString(parsedDataObj);
+            return objectMapper.readValue(jsonString, ParsedResumeData.class);
+        } catch (Exception e) {
+            log.error("Failed to parse resume data: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to parse resume data", e);
+        }
     }
 
     // Delete resume
