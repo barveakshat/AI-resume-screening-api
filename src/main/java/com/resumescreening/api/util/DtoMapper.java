@@ -46,7 +46,7 @@ public class DtoMapper {
         ParsedResumeData parsedData = null;
         if (resume.getParsedData() != null) {
             try {
-                parsedData = objectMapper.convertValue(
+                parsedData = objectMapper.readValue(
                         resume.getParsedData(),
                         ParsedResumeData.class
                 );
@@ -84,45 +84,20 @@ public class DtoMapper {
                 .resumeId(resume.getId())
                 .candidateName(candidate.getFullName())
                 .candidateEmail(candidate.getEmail())
-
-                // Scores
                 .matchScore(result.getMatchScore())
                 .skillMatchScore(result.getSkillMatchScore())
                 .experienceMatchScore(result.getExperienceMatchScore())
                 .educationMatchScore(result.getEducationMatchScore())
-
                 .recommendation(result.getRecommendation())
-
-                // Skills
                 .matchedSkills(result.getMatchedSkills())
                 .missingSkills(result.getMissingSkills())
-
-                // Analysis
                 .strengths(result.getStrengths())
                 .weaknesses(result.getWeaknesses())
                 .aiAnalysis(result.getAiAnalysis())
-
-                // Metadata
                 .processingTimeMs(result.getProcessingTimeMs())
                 .screenedAt(application.getScreenedAt())
                 .createdAt(result.getCreatedAt())
                 .build();
-    }
-
-    // Helper to convert JsonNode to List<String>
-    private static java.util.List<String> convertJsonToList(Object jsonNode) {
-        try {
-            if (jsonNode == null) return java.util.Collections.emptyList();
-            return objectMapper.convertValue(
-                    jsonNode,
-                    objectMapper.getTypeFactory().constructCollectionType(
-                            java.util.List.class,
-                            String.class
-                    )
-            );
-        } catch (Exception e) {
-            return java.util.Collections.emptyList();
-        }
     }
 
     public static ApplicationResponse toApplicationResponse(Application application) {
@@ -139,8 +114,6 @@ public class DtoMapper {
                 .coverLetter(application.getCoverLetter())
                 .appliedAt(application.getAppliedAt())
                 .screenedAt(application.getScreenedAt())
-                .screeningResult(application.getScreeningResult() != null ?
-                        toScreeningResultResponse(application.getScreeningResult()) : null)
                 .build();
     }
 }

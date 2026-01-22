@@ -32,7 +32,6 @@ public class ResumeService {
         User user = userService.getUserById(userId);
         // Upload file and extract text
         FileStorageService.FileUploadResult uploadResult = fileStorageService.storeResume(file);
-
         // Parse resume with AI
         ParsedResumeData parsedData = resumeParserService.parseResume(uploadResult.getExtractedText());
 
@@ -43,10 +42,9 @@ public class ResumeService {
         resume.setFileName(uploadResult.getFileName());
         resume.setFilePath(uploadResult.getFileUrl());
         resume.setContentType(uploadResult.getFileType());
+        resume.setFileSize(uploadResult.getFileSize());
         resume.setExtractedText(uploadResult.getExtractedText());
         resume.setParsedData(parsedDataJson);
-
-
         resume = resumeRepository.save(resume);
         log.info("Resume uploaded and parsed: {} for user {}", resume.getId(), userId);
         return resume;

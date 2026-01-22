@@ -56,7 +56,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // Validate token
                 if (jwtUtil.validateToken(jwt, userDetails)) {
-
+                    System.out.println("✅ JWT valid for user: " + userEmail);
+                    System.out.println("✅ Authorities: " + userDetails.getAuthorities());
                     // Create authentication object
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
@@ -71,10 +72,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     SecurityContextHolder.getContext().setAuthentication(authToken);
                 }
             }
-        } catch (Exception e) {
-            // Token invalid - continue without authentication
-            // Security will reject if endpoint requires auth
         }
+        catch (io.jsonwebtoken.ExpiredJwtException e) {
+            System.err.println("❌ JWT expired: " + e.getMessage());
+        } catch (io.jsonwebtoken.MalformedJwtException e) {
+            System.err.println("❌ JWT malformed: " + e.getMessage());
+        } catch (io.jsonwebtoken.SignatureException e) {
+            System.err.println("❌ JWT signature invalid: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("❌ JWT processing error: " + e.getClass().getName() + " - " + e.getMessage());
+        }
+//        catch (Exception e) {
+//            // Token invalid - continue without authentication
+//            // Security will reject if endpoint requires auth
+//        }
 
         // Continue filter chain
         filterChain.doFilter(request, response);

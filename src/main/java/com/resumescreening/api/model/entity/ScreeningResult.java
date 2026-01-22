@@ -22,12 +22,15 @@ public class ScreeningResult {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // ✅ CHANGED: Link to Application instead of Resume and JobPosting separately
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "application_id", nullable = false, unique = true)
     private Application application;
 
-    @Column(nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "job_posting_id", nullable = false)
+    private JobPosting jobPosting;
+
+    @Column(name = "overall_score", nullable = false)
     private Integer matchScore; // 0-100
 
     @Enumerated(EnumType.STRING)
@@ -59,11 +62,11 @@ public class ScreeningResult {
     @Column(columnDefinition = "TEXT")
     private String weaknesses;
 
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "ai_analysis", columnDefinition = "TEXT")
     private String aiAnalysis;
 
     @CreationTimestamp
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
     @Column(name = "processing_time_ms")

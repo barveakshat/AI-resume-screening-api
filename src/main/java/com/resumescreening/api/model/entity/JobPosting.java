@@ -45,11 +45,6 @@ public class JobPosting {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    /**
-     * ManyToOne: Many jobs can belong to one user
-     * fetch = LAZY: Don't load user data unless explicitly accessed (performance)
-     * JoinColumn: Creates foreign key column 'user_id' in job_postings table
-     */
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
@@ -90,7 +85,6 @@ public class JobPosting {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // ✅ CHANGED: Relationship to Applications instead of ScreeningResults
     @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<Application> applications = new ArrayList<>();
 

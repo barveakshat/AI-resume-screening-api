@@ -42,9 +42,6 @@ public class Application {
     @Column(columnDefinition = "TEXT")
     private String coverLetter;
 
-    @OneToOne(mappedBy = "application", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private ScreeningResult screeningResult;
-
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
     private LocalDateTime appliedAt;

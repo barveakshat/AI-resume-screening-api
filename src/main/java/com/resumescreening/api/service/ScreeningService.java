@@ -21,6 +21,7 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -72,8 +73,7 @@ public class ScreeningService {
             // Create screening result with ALL fields
             ScreeningResult result = new ScreeningResult();
             result.setApplication(application);
-
-            // Set all scores
+            result.setJobPosting(application.getJobPosting());
             result.setMatchScore(analysis.getOverallScore().intValue());
             result.setSkillMatchScore(analysis.getSkillMatchScore() != null ?
                     analysis.getSkillMatchScore().intValue() : null);
@@ -81,22 +81,13 @@ public class ScreeningService {
                     analysis.getExperienceMatchScore().intValue() : null);
             result.setEducationMatchScore(analysis.getEducationMatchScore() != null ?
                     analysis.getEducationMatchScore().intValue() : null);
-
             result.setRecommendation(determineRecommendation(analysis.getOverallScore()));
-
-            // Set skills
             result.setMatchedSkills(analysis.getMatchedSkills());
             result.setMissingSkills(analysis.getMissingSkills());
-
-            // Set analysis
             result.setStrengths(analysis.getStrengths());
             result.setWeaknesses(analysis.getWeaknesses());
             result.setAiAnalysis(analysis.getSummary());
-
-            // Set metadata
             result.setProcessingTimeMs(processingTime);
-
-            // Save to database
             result = screeningRepository.save(result);
 
             // Update application status
@@ -114,9 +105,6 @@ public class ScreeningService {
         }
     }
 
-    /**
-     * ✅ NEW: Batch screen all applications for a job
-     */
     @Transactional
     public List<ScreeningResult> batchScreenApplications(Long jobId, User recruiter) {
         log.info("Batch screening applications for job {}", jobId);
@@ -142,24 +130,16 @@ public class ScreeningService {
         return results;
     }
 
-    /**
-     * Get screening result by ID
-     */
     public ScreeningResult getScreeningResult(Long screeningId) {
         return screeningRepository.findById(screeningId)
                 .orElseThrow(() -> new ResourceNotFoundException("Screening result not found: " + screeningId));
     }
 
-    /**
-     * ✅ UPDATED: Get all screening results for a job (through applications)
-     */
+
     public List<ScreeningResult> getScreeningResultsByJobId(Long jobId) {
         return screeningRepository.findByApplicationJobPostingId(jobId);
     }
 
-    /**
-     * ✅ NEW: Get top candidates for a job
-     */
     public List<ScreeningResult> getTopCandidates(Long jobId) {
         List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
         return results.stream()
@@ -167,23 +147,14 @@ public class ScreeningService {
                 .collect(Collectors.toList());
     }
 
-    /**
-     * Get candidates by recommendation level
-     */
     public List<ScreeningResult> getCandidatesByRecommendation(Long jobId, Recommendation recommendation) {
         return screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation);
     }
 
-    /**
-     * ✅ UPDATED: Check if application is already screened
-     */
     public boolean applicationAlreadyScreened(Long applicationId) {
         return screeningRepository.existsByApplicationId(applicationId);
     }
 
-    /**
-     * ✅ NEW: Get screening statistics for a job
-     */
     public ScreeningStatistics getScreeningStatistics(Long jobId) {
         List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
 
@@ -216,9 +187,6 @@ public class ScreeningService {
         );
     }
 
-    /**
-     * ✅ NEW: Get average score for a job
-     */
     public double getAverageScoreForJob(Long jobId) {
         List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
         return results.stream()
@@ -227,18 +195,12 @@ public class ScreeningService {
                 .orElse(0.0);
     }
 
-    /**
-     * Count screening results by recommendation
-     */
     public long countByRecommendation(Long jobId, Recommendation recommendation) {
         return getCandidatesByRecommendation(jobId, recommendation).size();
     }
 
     // ==================== PRIVATE HELPER METHODS ====================
 
-    /**
-     * Build screening prompt for AI
-     */
     private String buildScreeningPrompt(JobPosting job, Resume resume) {
         // Get parsed resume data
         ParsedResumeData parsedData = extractParsedData(resume);
@@ -314,7 +276,7 @@ public class ScreeningService {
             return "Not specified";
         }
 
-        ParsedResumeData.Education edu = data.getEducation().get(0);
+        ParsedResumeData.Education edu = data.getEducation().getFirst();
         return String.format("%s from %s (%s)",
                 edu.getDegree() != null ? edu.getDegree() : "Unknown",
                 edu.getInstitution() != null ? edu.getInstitution() : "Unknown",
@@ -334,6 +296,10 @@ public class ScreeningService {
         } else {
             return Recommendation.POOR_FIT;
         }
+    }
+
+    public Optional<ScreeningResult> getScreeningResultByApplicationId(Long id) {
+        return screeningRepository.findByApplicationId(id);
     }
 
     /**

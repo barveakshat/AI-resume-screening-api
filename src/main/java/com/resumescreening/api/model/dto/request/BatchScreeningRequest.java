@@ -11,7 +11,4 @@ public class BatchScreeningRequest {
 
     @NotNull(message = "Job posting ID is required")
     private Long jobPostingId;
-
-    @NotEmpty(message = "Resume IDs list cannot be empty")
-    private List<Long> resumeIds;
 }

@@ -32,28 +32,24 @@ public class Resume {
     @Column(nullable = false)
     private String fileName;
 
-    @Column
-    private String resumeTitle; // e.g., "Software Engineer Resume - 2025"
-
     @Column(nullable = false)
     private String filePath;
 
-    @Column(name = "extracted_text", columnDefinition = "TEXT")
-    private String extractedText;
+    @Column(name = "file_type", length = 50)
+    private String contentType;
+
+    @Column
+    private Long fileSize;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     private String parsedData;
 
-
     @Column
-    private Long fileSize;
+    private String resumeTitle; // e.g., "Software Engineer Resume - 2025"
 
-    @Column
-    private String contentType;
-
-    @OneToMany(mappedBy = "resume", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<Application> applications = new ArrayList<>();
+    @Column(name = "extracted_text", columnDefinition = "TEXT")
+    private String extractedText;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)

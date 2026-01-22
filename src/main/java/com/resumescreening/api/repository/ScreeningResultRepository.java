@@ -52,7 +52,7 @@ public interface ScreeningResultRepository extends JpaRepository<ScreeningResult
 
     /**
      * Find top N screening results by match score for a job.
-     * Useful for finding best candidates.
+     * Useful for finding the best candidates.
      */
     @Query("SELECT sr FROM ScreeningResult sr " +
             "WHERE sr.application.jobPosting.id = :jobId " +

@@ -13,18 +13,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * User entity - represents both recruiters and candidates.
- *
- * Key fields:
- * - role: Determines what features user can access
- * - companyName/designation: Only for recruiters
- * - isEmailVerified: For future email verification feature
- *
- * Relationships:
- * - One user can have many job postings (if recruiter)
- * - One user can have many resumes (both roles can upload)
- */
 @Setter
 @Getter
 @Entity
@@ -36,26 +24,26 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false, length = 255)
+    @Column(unique = true, nullable = false)
     private String email;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String password;  // Will be BCrypt encrypted
 
-    @Column(name = "full_name", nullable = false, length = 255)
+    @Column(name = "full_name", nullable = false)
     private String fullName;
 
     @Enumerated(EnumType.STRING)  // Store as "RECRUITER" or "CANDIDATE" in DB
     @Column(nullable = false, length = 50)
     private Role role;
 
-    @Column(name = "company_name", length = 255)
+    @Column(name = "company_name")
     private String companyName;  // Only for recruiters
 
-    @Column(length = 255)
+    @Column
     private String designation;  // Only for recruiters
 
-    @Column(name = "phone_number", length = 20)
+    @Column(name = "phone_number")
     private String phoneNumber;
 
     @Column(name = "is_email_verified")
@@ -89,38 +77,4 @@ public class User {
      */
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Resume> resumes = new ArrayList<>();
-
-    // ============================================
-    // HELPER METHODS (Optional but useful)
-    // ============================================
-    /**
-     * Helper method to add a job posting.
-     *
-     * BEST PRACTICE: Maintain bidirectional relationship
-     * - Add job to user's list
-     * - Set user on job (so foreign key is saved)
-     *
-     * WHY THIS MATTERS:
-     * - Without this: jobPosting.setUser(user) must be called separately
-     * - With this: user.addJobPosting(job) does both!
-     */
-    public void addJobPosting(JobPosting jobPosting) {
-        jobPostings.add(jobPosting);
-        jobPosting.setUser(this);
-    }
-
-    public void removeJobPosting(JobPosting jobPosting) {
-        jobPostings.remove(jobPosting);
-        jobPosting.setUser(null);
-    }
-
-    public void addResume(Resume resume) {
-        resumes.add(resume);
-        resume.setUser(this);
-    }
-
-    public void removeResume(Resume resume) {
-        resumes.remove(resume);
-        resume.setUser(null);
-    }
 }

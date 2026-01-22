@@ -55,13 +55,16 @@ public class ScreeningController {
         }
 
         // Screen application
-        ScreeningResult result = screeningService.screenApplication(application);
+        ScreeningResult result = screeningService.getScreeningResultByApplicationId(application.getId())
+                .orElseGet(() -> screeningService.screenApplication(application));
 
         ScreeningResultResponse response = DtoMapper.toScreeningResultResponse(result);
-
+        String message = result.getId() != null && result.getCreatedAt() != null
+                ? "Application already screened - returning existing result"
+                : "Application screened successfully";
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Application screened successfully", response));
+                .body(ApiResponse.success(message, response));
     }
 
     // ✅ Batch screen all applications for a job
@@ -93,7 +96,7 @@ public class ScreeningController {
                 .body(ApiResponse.success("Batch screening completed", responses));
     }
 
-    // ✅ Get screening result by ID
+    // Get screening result by ID
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<ScreeningResultResponse>> getScreeningResult(
             @PathVariable Long id,
@@ -104,7 +107,7 @@ public class ScreeningController {
 
         ScreeningResult result = screeningService.getScreeningResult(id);
 
-        // ✅ FIXED: Access job posting through application
+        // Access job posting through application
         if (!result.getApplication().getJobPosting().getUser().getId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
@@ -116,7 +119,7 @@ public class ScreeningController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
-    // ✅ Get all screening results for a job
+    // Get all screening results for a job
     @GetMapping("/job/{jobId}")
     public ResponseEntity<ApiResponse<List<ScreeningResultResponse>>> getJobScreeningResults(
             @PathVariable Long jobId,

@@ -87,11 +87,6 @@ public class ApplicationService {
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
     }
 
-    public Application getApplicationWithScreeningResult(Long id) {
-        return applicationRepository.findByIdWithScreeningResult(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
-    }
-
     @Transactional
     public Application updateApplicationStatus(Long applicationId, ApplicationStatus status, User recruiter) {
         Application application = getApplicationById(applicationId);

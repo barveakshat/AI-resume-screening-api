@@ -30,9 +30,6 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     // find jobs by skill
     List<JobPosting> findByRequiredSkillsContaining(String skill);
 
-
-
-
     // Count active jobs for a user
     long countByUserIdAndIsActiveTrue(Long userId);
 

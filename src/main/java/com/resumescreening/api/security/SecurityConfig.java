@@ -115,7 +115,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/resumes/**").authenticated()
 
                         // ✅ Screening endpoints - authenticated users only
-                        .requestMatchers("/api/v1/screening/**").authenticated()
+                        .requestMatchers("/api/v1/screening/**").hasRole("RECRUITER")
 
                         // ✅ Analytics endpoints - authenticated users only
                         .requestMatchers("/api/v1/analytics/**").authenticated()

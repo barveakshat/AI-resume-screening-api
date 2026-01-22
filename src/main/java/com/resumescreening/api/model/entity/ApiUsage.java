@@ -11,18 +11,15 @@ import java.time.LocalDateTime;
 
 /**
  * ApiUsage entity - tracks API usage for rate limiting.
- *
  * Purpose:
  * - Prevent abuse of API (too many requests)
  * - Track usage per user per endpoint
  * - Reset counters periodically (e.g., every hour)
- *
  * Example:
  * - User makes 50 screening requests in 1 hour
  * - request_count = 50
  * - If limit is 100, they can make 50 more
  * - After 1 hour, counter resets to 0
- *
  * Relationships:
  * - ManyToOne with User (track each user's usage)
  * - Unique constraint: One user + one endpoint = one record
@@ -50,7 +47,7 @@ public class ApiUsage {
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false)
     private String endpoint;  // e.g., "/api/v1/screening/analyze"
 
     @Column(name = "request_count")
@@ -60,23 +57,4 @@ public class ApiUsage {
     @Column(name = "last_reset", nullable = false)
     private LocalDateTime lastReset;  // When counter was last reset
 
-    public ApiUsage(User user, String endpoint) {
-        this.user = user;
-        this.endpoint = endpoint;
-    }
-
-    /**
-     * Helper method to increment request count
-     */
-    public void incrementCount() {
-        this.requestCount++;
-    }
-
-    /**
-     * Helper method to reset counter (called after time limit)
-     */
-    public void resetCount() {
-        this.requestCount = 0;
-        this.lastReset = LocalDateTime.now();
-    }
 }

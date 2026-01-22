@@ -7,7 +7,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.io.InputStream;
 
 @Service
 @RequiredArgsConstructor
@@ -21,16 +20,12 @@ public class FileStorageService {
     // Store resume file
     public FileUploadResult storeResume(MultipartFile file) {
         try {
-            // Validate file
+            // Validate file & Upload to S3
             validationService.validateFile(file);
-
-            // Upload to S3
             String fileUrl = s3Service.uploadFile(file, "resumes");
 
-            // Extract text
+            // Extract text & Return result
             String extractedText = textExtractionService.extractText(file);
-
-            // Return result
             return FileUploadResult.builder()
                     .fileName(file.getOriginalFilename())
                     .fileUrl(fileUrl)
@@ -54,18 +49,6 @@ public class FileStorageService {
         } catch (Exception e) {
             log.error("Error deleting file: {}", e.getMessage());
             throw new FileStorageException("Failed to delete file", e);
-        }
-    }
-
-    // Download file
-    public InputStream downloadFile(String fileUrl) {
-        try {
-            String fileKey = s3Service.extractFileKeyFromUrl(fileUrl);
-            return s3Service.downloadFile(fileKey);
-
-        } catch (Exception e) {
-            log.error("Error downloading file: {}", e.getMessage());
-            throw new FileStorageException("Failed to download file", e);
         }
     }
 
