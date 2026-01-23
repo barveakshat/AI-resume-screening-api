@@ -6,11 +6,11 @@ import com.resumescreening.api.model.enums.Role;
 import com.resumescreening.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -55,6 +55,7 @@ public class UserService {
     }
 
     // Find user by email
+    @Cacheable(value = "users", key = "'email_' + #email", unless = "#result == null || !#result.isPresent()")
     public Optional<User> findByEmail(String email) {
         return userRepository.findByEmail(email);
     }
@@ -63,11 +64,6 @@ public class UserService {
     public User getUserById(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
-    }
-
-    // Get active user by email
-    public Optional<User> findActiveUserByEmail(String email) {
-        return userRepository.findActiveUserByEmail(email);
     }
 
     // Update user profile
@@ -98,19 +94,19 @@ public class UserService {
     // Change password
     @Transactional
     public void changePassword(Long userId, String oldPassword, String newPassword) {
-        User user = getUserById(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
-        // Verify old password
         if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
             throw new IllegalArgumentException("Current password is incorrect");
         }
 
-        // Update password
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
 
         log.info("Password changed for user: {}", userId);
     }
+
 
     // Deactivate account (soft delete)
     @Transactional
@@ -120,15 +116,5 @@ public class UserService {
         userRepository.save(user);
 
         log.info("Account deactivated for user: {}", userId);
-    }
-
-    // Get all users by role
-    public List<User> getUsersByRole(Role role) {
-        return userRepository.findByRoleAndIsActiveTrue(role);
-    }
-
-    // Count users by role
-    public long countUsersByRole(Role role) {
-        return userRepository.countByRole(role);
     }
 }
