@@ -1,5 +1,6 @@
 package com.resumescreening.api.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import com.resumescreening.api.converter.StringListConverter;
 import com.resumescreening.api.model.enums.EmploymentType;
 import com.resumescreening.api.model.enums.ExperienceLevel;
@@ -17,17 +18,14 @@ import java.util.List;
 
 /**
  * JobPosting entity - represents jobs created by recruiters.
- *
  * Purpose:
  * - Recruiters create job postings with requirements
  * - These are used to screen candidates' resumes
  * - AI compares resume against job requirements
- *
  * Key fields:
  * - requiredSkills: Array of skills needed (Spring Boot, AWS, etc.)
  * - experienceLevel: Entry/Mid/Senior/Lead
  * - isActive: Whether job is still open for applications
- *
  * Relationships:
  * - ManyToOne with User (many jobs belong to one recruiter)
  * - OneToMany with ScreeningResult (one job can have many screening results)
@@ -47,9 +45,10 @@ public class JobPosting {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
     private User user;
 
-    @Column(nullable = false, length = 255)
+    @Column(nullable = false, columnDefinition = "VARCHAR(255)")
     private String title;  // e.g., "Senior Java Developer"
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -68,11 +67,14 @@ public class JobPosting {
     @Column(name = "employment_type", length = 50)
     private EmploymentType employmentType;
 
-    @Column(length = 255)
+    @Column(columnDefinition = "VARCHAR(255)")
     private String location;  // e.g., "Bangalore, India"
 
     @Column(name = "salary_range", length = 100)
     private String salaryRange;  // e.g., "₹12-18 LPA"
+
+    @Column(name = "company_name")
+    private String companyName;
 
     @Column(name = "is_active")
     private Boolean isActive = true;  // Can be deactivated when position is filled

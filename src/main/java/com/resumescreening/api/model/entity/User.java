@@ -1,5 +1,6 @@
 package com.resumescreening.api.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.resumescreening.api.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -69,6 +70,7 @@ public class User {
      * orphanRemoval = true means if job is removed from list, delete it.
      */
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonManagedReference
     private List<JobPosting> jobPostings = new ArrayList<>();
 
     /**

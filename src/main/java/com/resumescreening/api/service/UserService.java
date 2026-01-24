@@ -6,7 +6,9 @@ import com.resumescreening.api.model.enums.Role;
 import com.resumescreening.api.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,22 +23,16 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    // Register new user
-    @Transactional
+    @Transactional          // Register new user - evict any stale cache entries
+    @CacheEvict(value = "users", key = "'email_' + #email")
     public User registerUser(String email, String password, String fullName,
                              Role role, String companyName, String designation) {
-
-        // Check if email already exists
         if (userRepository.existsByEmail(email)) {
             throw new IllegalArgumentException("Email already registered: " + email);
         }
-
-        // Validate role-specific fields
         if (role == Role.RECRUITER && (companyName == null || companyName.trim().isEmpty())) {
             throw new IllegalArgumentException("Company name is required for recruiters");
         }
-
-        // Create user entity
         User user = new User();
         user.setEmail(email);
         user.setPassword(passwordEncoder.encode(password));
@@ -46,31 +42,36 @@ public class UserService {
         user.setDesignation(designation);
         user.setIsEmailVerified(false);
         user.setIsActive(true);
-
-        // Save to database
         user = userRepository.save(user);
 
         log.info("User registered successfully: {} ({})", email, role);
         return user;
     }
 
-    // Find user by email
-    @Cacheable(value = "users", key = "'email_' + #email", unless = "#result == null || !#result.isPresent()")
+    // Find user by email - cached
+    @Cacheable(value = "users", key = "'email_' + #email", unless = "#result == null")
     public Optional<User> findByEmail(String email) {
+        log.debug("Fetching user from database by email: {}", email);
         return userRepository.findByEmail(email);
     }
-
-    // Get user by ID
+    // Get user by ID - cached (frequently called for auth checks)
+    @Cacheable(value = "users", key = "'id_' + #userId")
     public User getUserById(Long userId) {
+        log.debug("Fetching user from database by id: {}", userId);
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
     }
 
-    // Update user profile
+    // Update user profile - evict both id and email cache entries
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "'id_' + #userId"),
+            @CacheEvict(value = "users", key = "'email_' + #result.email")
+    })
     public User updateProfile(Long userId, String fullName, String phoneNumber,
                               String companyName, String designation) {
-        User user = getUserById(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
 
         if (fullName != null && !fullName.trim().isEmpty()) {
             user.setFullName(fullName);
@@ -91,8 +92,12 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // Change password
+    // Change password - evict cache
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "users", key = "'id_' + #userId"),
+            @CacheEvict(value = "users")
+    })
     public void changePassword(Long userId, String oldPassword, String newPassword) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
@@ -107,11 +112,12 @@ public class UserService {
         log.info("Password changed for user: {}", userId);
     }
 
-
-    // Deactivate account (soft delete)
+    // Deactivate account - evict cache
     @Transactional
+    @CacheEvict(value = "users", key = "'id_' + #userId")
     public void deactivateAccount(Long userId) {
-        User user = getUserById(userId);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + userId));
         user.setIsActive(false);
         userRepository.save(user);
 

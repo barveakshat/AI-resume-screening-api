@@ -13,24 +13,26 @@ import org.springframework.data.redis.serializer.RedisSerializationContext;
 import org.springframework.data.redis.serializer.StringRedisSerializer;
 
 import java.time.Duration;
-import java.util.HashMap;
-import java.util.Map;
 
 @Configuration
 @EnableCaching
 public class RedisConfig {
+
+    private GenericJacksonJsonRedisSerializer createJsonSerializer() {
+        return GenericJacksonJsonRedisSerializer.builder()
+                .enableUnsafeDefaultTyping()
+                .enableSpringCacheNullValueSupport()
+                .build();
+    }
 
     @Bean
     public RedisTemplate<String, Object> redisTemplate(RedisConnectionFactory connectionFactory) {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(connectionFactory);
 
-        // Use String serializer for keys
         StringRedisSerializer stringSerializer = new StringRedisSerializer();
-        GenericJacksonJsonRedisSerializer jsonSerializer = GenericJacksonJsonRedisSerializer.builder()
-                .enableSpringCacheNullValueSupport().build(); // Essential for proper @Cacheable support
+        GenericJacksonJsonRedisSerializer jsonSerializer = createJsonSerializer();
 
-        // Use JSON serializer for values
         template.setKeySerializer(stringSerializer);
         template.setHashKeySerializer(stringSerializer);
         template.setValueSerializer(jsonSerializer);
@@ -42,25 +44,15 @@ public class RedisConfig {
 
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
-        GenericJacksonJsonRedisSerializer jsonSerializer = GenericJacksonJsonRedisSerializer.builder()
-                .enableSpringCacheNullValueSupport()
-                .build();
+        GenericJacksonJsonRedisSerializer jsonSerializer = createJsonSerializer();
 
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofHours(1))
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
-                .disableCachingNullValues();
-//        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
-//        cacheConfigurations.put("jobPostings", config.entryTtl(Duration.ofHours(2)));
-//        cacheConfigurations.put("resumes", config.entryTtl(Duration.ofHours(4)));
-//        cacheConfigurations.put("screeningResults", config.entryTtl(Duration.ofMinutes(30)));
-//        cacheConfigurations.put("users", config.entryTtl(Duration.ofHours(1)));
-//        cacheConfigurations.put("applications", config.entryTtl(Duration.ofMinutes(15)));
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
-//                .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
     }
 }

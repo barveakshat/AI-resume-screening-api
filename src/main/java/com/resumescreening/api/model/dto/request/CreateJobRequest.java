@@ -29,4 +29,7 @@ public class CreateJobRequest {
 
     private String location;
     private String salaryRange;
+
+    @NotBlank(message = "Company name is required")
+    private String companyName;
 }

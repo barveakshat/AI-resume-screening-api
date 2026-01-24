@@ -22,7 +22,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/jobs")
@@ -32,56 +31,8 @@ public class JobPostingController {
     private final JobPostingService jobPostingService;
     private final UserService userService;
 
-    // Create job posting (Recruiters only)
-    @PostMapping
-    @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<ApiResponse<JobPostingResponse>> createJob(
-            @Valid @RequestBody CreateJobRequest request,
-            Authentication authentication
-    ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        JobPosting job = jobPostingService.createJob(
-                user.getId(),
-                request.getTitle(),
-                request.getDescription(),
-                request.getRequiredSkills(),
-                request.getExperienceLevel(),
-                request.getEmploymentType(),
-                request.getLocation(),
-                request.getSalaryRange()
-        );
-
-        JobPostingResponse response = DtoMapper.toJobPostingResponse(job);
-
-        return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Job posting created successfully", response));
-    }
-
-    // Get all jobs for current user (Recruiters only)
-    @GetMapping("/my-jobs")
-    @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<ApiResponse<List<JobPostingResponse>>> getMyJobs(
-            Authentication authentication
-    ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
-        List<JobPosting> jobs = jobPostingService.getActiveJobsByUser(user.getId());
-
-        List<JobPostingResponse> responses = jobs.stream()
-                .map(DtoMapper::toJobPostingResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(
-                ApiResponse.success(responses)
-        );
-    }
-
-    // Get all active jobs (paginated) - anyone can view
-    @GetMapping("/search")
+    // GET /api/v1/jobs - List all active jobs (public)
+    @GetMapping
     public ResponseEntity<ApiResponse<Page<JobPostingResponse>>> getAllJobs(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
@@ -93,30 +44,75 @@ public class JobPostingController {
                 : Sort.by(sortBy).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
-
         Page<JobPosting> jobsPage = jobPostingService.getAllActiveJobs(pageable);
 
-        Page<JobPostingResponse> responsePage = jobsPage.map(DtoMapper::toJobPostingResponse);
-
-        return ResponseEntity.ok(
-                ApiResponse.success(responsePage)
-        );
+        return ResponseEntity.ok(ApiResponse.success(jobsPage.map(DtoMapper::toJobPostingResponse)));
     }
 
-    // Get job by ID
+    // GET /api/v1/jobs/{id} - Get single job (public)
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<JobPostingResponse>> getJobById(
-            @PathVariable Long id
-    ) {
+    public ResponseEntity<ApiResponse<JobPostingResponse>> getJobById(@PathVariable Long id) {
         JobPosting job = jobPostingService.getJobById(id);
-        JobPostingResponse response = DtoMapper.toJobPostingResponse(job);
-
-        return ResponseEntity.ok(
-                ApiResponse.success(response)
-        );
+        return ResponseEntity.ok(ApiResponse.success(DtoMapper.toJobPostingResponse(job)));
     }
 
-    // Update job (Recruiters only, owner only)
+    // GET /api/v1/jobs/search - Search jobs with filters
+    @GetMapping("/search")
+    public ResponseEntity<ApiResponse<Page<JobPostingResponse>>> searchJobs(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String location,
+            @RequestParam(required = false) String experienceLevel,
+            @RequestParam(required = false) String employmentType,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir
+    ) {
+        Sort sort = sortDir.equalsIgnoreCase("ASC")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+
+        Pageable pageable = PageRequest.of(page, size, sort);
+        Page<JobPosting> jobsPage = jobPostingService.searchJobs(
+                keyword, location, experienceLevel, employmentType, pageable
+        );
+
+        return ResponseEntity.ok(ApiResponse.success(jobsPage.map(DtoMapper::toJobPostingResponse)));
+    }
+
+
+    // GET /api/v1/jobs/my-jobs - Get recruiter's own jobs
+    @GetMapping("/my-jobs")
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<ApiResponse<List<JobPostingResponse>>> getMyJobs(Authentication authentication) {
+        User user = getAuthenticatedUser(authentication);
+        List<JobPostingResponse> responses = jobPostingService.getActiveJobsByUser(user.getId())
+                .stream()
+                .map(DtoMapper::toJobPostingResponse)
+                .toList();
+
+        return ResponseEntity.ok(ApiResponse.success(responses));
+    }
+
+    // POST /api/v1/jobs - Create job
+    @PostMapping
+    @PreAuthorize("hasRole('RECRUITER')")
+    public ResponseEntity<ApiResponse<JobPostingResponse>> createJob(
+            @Valid @RequestBody CreateJobRequest request,
+            Authentication authentication
+    ) {
+        User user = getAuthenticatedUser(authentication);
+        JobPosting job = jobPostingService.createJob(
+                user.getId(), request.getTitle(), request.getDescription(),
+                request.getRequiredSkills(), request.getExperienceLevel(),
+                request.getEmploymentType(), request.getLocation(), request.getSalaryRange(), request.getCompanyName()
+        );
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success("Job created successfully", DtoMapper.toJobPostingResponse(job)));
+    }
+
+    // PUT /api/v1/jobs/{id} - Update job
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<JobPostingResponse>> updateJob(
@@ -124,59 +120,36 @@ public class JobPostingController {
             @Valid @RequestBody UpdateJobRequest request,
             Authentication authentication
     ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+        User user = getAuthenticatedUser(authentication);
         JobPosting job = jobPostingService.updateJob(
-                id,
-                user.getId(),
-                request.getTitle(),
-                request.getDescription(),
-                request.getRequiredSkills(),
-                request.getExperienceLevel(),
-                request.getEmploymentType(),
-                request.getLocation(),
-                request.getSalaryRange()
+                id, user.getId(), request.getTitle(), request.getDescription(),
+                request.getRequiredSkills(), request.getExperienceLevel(),
+                request.getEmploymentType(), request.getLocation(), request.getSalaryRange()
         );
 
-        JobPostingResponse response = DtoMapper.toJobPostingResponse(job);
-
-        return ResponseEntity.ok(
-                ApiResponse.success("Job updated successfully", response)
-        );
+        return ResponseEntity.ok(ApiResponse.success("Job updated successfully", DtoMapper.toJobPostingResponse(job)));
     }
 
-    // Deactivate job (Recruiters only, owner only)
+    // PATCH /api/v1/jobs/{id}/deactivate - Deactivate job
     @PatchMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<ApiResponse<Void>> deactivateJob(
-            @PathVariable Long id,
-            Authentication authentication
-    ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    public ResponseEntity<ApiResponse<Void>> deactivateJob(@PathVariable Long id, Authentication authentication) {
+        User user = getAuthenticatedUser(authentication);
         jobPostingService.deactivateJob(id, user.getId());
-
-        return ResponseEntity.ok(
-                ApiResponse.success("Job deactivated successfully", null)
-        );
+        return ResponseEntity.ok(ApiResponse.success("Job deactivated successfully", null));
     }
 
-    // Delete job (Recruiters only, owner only)
+    // DELETE /api/v1/jobs/{id} - Delete job
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<ApiResponse<Void>> deleteJob(
-            @PathVariable Long id,
-            Authentication authentication
-    ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-
+    public ResponseEntity<ApiResponse<Void>> deleteJob(@PathVariable Long id, Authentication authentication) {
+        User user = getAuthenticatedUser(authentication);
         jobPostingService.deleteJob(id, user.getId());
+        return ResponseEntity.ok(ApiResponse.success("Job deleted successfully", null));
+    }
 
-        return ResponseEntity.ok(
-                ApiResponse.success("Job deleted successfully", null)
-        );
+    private User getAuthenticatedUser(Authentication authentication) {
+        return userService.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }
