@@ -3,17 +3,15 @@ package com.resumescreening.api.controller;
 import com.resumescreening.api.model.dto.request.BatchScreeningRequest;
 import com.resumescreening.api.model.dto.request.ScreeningRequest;
 import com.resumescreening.api.model.dto.response.ApiResponse;
+import com.resumescreening.api.model.dto.response.JobPostingResponse;
 import com.resumescreening.api.model.dto.response.ScreeningResultResponse;
 import com.resumescreening.api.model.entity.Application;
-import com.resumescreening.api.model.entity.JobPosting;
-import com.resumescreening.api.model.entity.ScreeningResult;
 import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.model.enums.Recommendation;
 import com.resumescreening.api.service.ApplicationService;
 import com.resumescreening.api.service.JobPostingService;
 import com.resumescreening.api.service.ScreeningService;
 import com.resumescreening.api.service.UserService;
-import com.resumescreening.api.util.DtoMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -23,7 +21,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/screening")
@@ -42,11 +40,10 @@ public class ScreeningController {
             @Valid @RequestBody ScreeningRequest request,
             Authentication authentication
     ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser(authentication);
 
-        // Get application and validate ownership through job posting
-        Application application = applicationService.getApplicationById(request.getApplicationId());
+        // Get application entity and validate ownership through job posting
+        Application application = applicationService.getApplicationEntityById(request.getApplicationId());
 
         if (!application.getJobPosting().getUser().getId().equals(user.getId())) {
             return ResponseEntity
@@ -54,17 +51,23 @@ public class ScreeningController {
                     .body(ApiResponse.error("You don't have permission to screen this application"));
         }
 
-        // Screen application
-        ScreeningResult result = screeningService.getScreeningResultByApplicationId(application.getId())
-                .orElseGet(() -> screeningService.screenApplication(application));
+        // Check if already screened, if yes return existing result
+        Optional<ScreeningResultResponse> existingResult =
+                screeningService.getScreeningResultByApplicationId(application.getId());
 
-        ScreeningResultResponse response = DtoMapper.toScreeningResultResponse(result);
-        String message = result.getId() != null && result.getCreatedAt() != null
-                ? "Application already screened - returning existing result"
-                : "Application screened successfully";
+        if (existingResult.isPresent()) {
+            return ResponseEntity.ok(
+                    ApiResponse.success("Application already screened - returning existing result",
+                            existingResult.get())
+            );
+        }
+
+        // Screen application
+        ScreeningResultResponse result = screeningService.screenApplication(application);
+
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success(message, response));
+                .body(ApiResponse.success("Application screened successfully", result));
     }
 
     // ✅ Batch screen all applications for a job
@@ -73,11 +76,10 @@ public class ScreeningController {
             @Valid @RequestBody BatchScreeningRequest request,
             Authentication authentication
     ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser(authentication);
 
         // Get job and validate ownership
-        JobPosting job = jobPostingService.getJobById(request.getJobPostingId());
+        JobPostingResponse job = jobPostingService.getJobById(request.getJobPostingId());
         if (!job.getUser().getId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
@@ -85,15 +87,12 @@ public class ScreeningController {
         }
 
         // Batch screen all applications for this job
-        List<ScreeningResult> results = screeningService.batchScreenApplications(request.getJobPostingId(), user);
-
-        List<ScreeningResultResponse> responses = results.stream()
-                .map(DtoMapper::toScreeningResultResponse)
-                .collect(Collectors.toList());
+        List<ScreeningResultResponse> results =
+                screeningService.batchScreenApplications(request.getJobPostingId(), user);
 
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Batch screening completed", responses));
+                .body(ApiResponse.success("Batch screening completed", results));
     }
 
     // Get screening result by ID
@@ -102,21 +101,19 @@ public class ScreeningController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser(authentication);
 
-        ScreeningResult result = screeningService.getScreeningResult(id);
+        ScreeningResultResponse result = screeningService.getScreeningResult(id);
 
-        // Access job posting through application
-        if (!result.getApplication().getJobPosting().getUser().getId().equals(user.getId())) {
+        // Validate ownership - need to check if user owns the job
+        JobPostingResponse job = jobPostingService.getJobById(result.getJobPostingId());
+        if (!job.getUser().getId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("You don't have permission to view this screening result"));
         }
 
-        ScreeningResultResponse response = DtoMapper.toScreeningResultResponse(result);
-
-        return ResponseEntity.ok(ApiResponse.success(response));
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 
     // Get all screening results for a job
@@ -125,24 +122,40 @@ public class ScreeningController {
             @PathVariable Long jobId,
             Authentication authentication
     ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser(authentication);
 
         // Validate job ownership
-        JobPosting job = jobPostingService.getJobById(jobId);
+        JobPostingResponse job = jobPostingService.getJobById(jobId);
         if (!job.getUser().getId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("You don't have permission to view screening results for this job"));
         }
 
-        List<ScreeningResult> results = screeningService.getScreeningResultsByJobId(jobId);
+        List<ScreeningResultResponse> results = screeningService.getScreeningResultsByJobId(jobId);
 
-        List<ScreeningResultResponse> responses = results.stream()
-                .map(DtoMapper::toScreeningResultResponse)
-                .collect(Collectors.toList());
+        return ResponseEntity.ok(ApiResponse.success(results));
+    }
 
-        return ResponseEntity.ok(ApiResponse.success(responses));
+    // ✅ Get top candidates (sorted by score)
+    @GetMapping("/job/{jobId}/top-candidates")
+    public ResponseEntity<ApiResponse<List<ScreeningResultResponse>>> getTopCandidates(
+            @PathVariable Long jobId,
+            Authentication authentication
+    ) {
+        User user = getAuthenticatedUser(authentication);
+
+        // Validate job ownership
+        JobPostingResponse job = jobPostingService.getJobById(jobId);
+        if (!job.getUser().getId().equals(user.getId())) {
+            return ResponseEntity
+                    .status(HttpStatus.FORBIDDEN)
+                    .body(ApiResponse.error("Access denied"));
+        }
+
+        List<ScreeningResultResponse> results = screeningService.getTopCandidates(jobId);
+
+        return ResponseEntity.ok(ApiResponse.success(results));
     }
 
     // ✅ Get candidates by recommendation level
@@ -152,45 +165,45 @@ public class ScreeningController {
             @PathVariable Recommendation recommendation,
             Authentication authentication
     ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser(authentication);
 
         // Validate job ownership
-        JobPosting job = jobPostingService.getJobById(jobId);
+        JobPostingResponse job = jobPostingService.getJobById(jobId);
         if (!job.getUser().getId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Access denied"));
         }
 
-        List<ScreeningResult> results = screeningService.getCandidatesByRecommendation(jobId, recommendation);
+        List<ScreeningResultResponse> results =
+                screeningService.getCandidatesByRecommendation(jobId, recommendation);
 
-        List<ScreeningResultResponse> responses = results.stream()
-                .map(DtoMapper::toScreeningResultResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(ApiResponse.success(responses));
+        return ResponseEntity.ok(ApiResponse.success(results));
     }
 
-    // ✅ NEW: Get screening statistics for a job
+    // ✅ Get screening statistics for a job
     @GetMapping("/job/{jobId}/stats")
-    public ResponseEntity<ApiResponse<?>> getScreeningStats(
+    public ResponseEntity<ApiResponse<ScreeningService.ScreeningStatistics>> getScreeningStats(
             @PathVariable Long jobId,
             Authentication authentication
     ) {
-        User user = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = getAuthenticatedUser(authentication);
 
         // Validate job ownership
-        JobPosting job = jobPostingService.getJobById(jobId);
+        JobPostingResponse job = jobPostingService.getJobById(jobId);
         if (!job.getUser().getId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Access denied"));
         }
 
-        var stats = screeningService.getScreeningStatistics(jobId);
+        ScreeningService.ScreeningStatistics stats = screeningService.getScreeningStatistics(jobId);
 
         return ResponseEntity.ok(ApiResponse.success(stats));
+    }
+
+    private User getAuthenticatedUser(Authentication authentication) {
+        return userService.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

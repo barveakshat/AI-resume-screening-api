@@ -1,5 +1,7 @@
 package com.resumescreening.api.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.resumescreening.api.model.enums.ApplicationStatus;
 import jakarta.persistence.*;
 import lombok.*;
@@ -25,14 +27,17 @@ public class Application {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "job_posting_id", nullable = false)
+    @JsonIgnore
     private JobPosting jobPosting;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "candidate_id", nullable = false)
+    @JsonIgnore
     private User candidate; // The user applying (must have CANDIDATE role)
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "resume_id", nullable = false)
+    @JsonIgnore
     private Resume resume; // The resume selected for this application
 
     @Enumerated(EnumType.STRING)
@@ -51,4 +56,14 @@ public class Application {
 
     @Column
     private LocalDateTime screenedAt;
+    @PrePersist
+    protected void onCreate() {
+        appliedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

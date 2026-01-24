@@ -4,11 +4,9 @@ import com.resumescreening.api.model.dto.request.CreateJobRequest;
 import com.resumescreening.api.model.dto.request.UpdateJobRequest;
 import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.JobPostingResponse;
-import com.resumescreening.api.model.entity.JobPosting;
 import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.service.JobPostingService;
 import com.resumescreening.api.service.UserService;
-import com.resumescreening.api.util.DtoMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -44,16 +42,16 @@ public class JobPostingController {
                 : Sort.by(sortBy).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<JobPosting> jobsPage = jobPostingService.getAllActiveJobs(pageable);
+        Page<JobPostingResponse> jobsPage = jobPostingService.getAllActiveJobs(pageable);
 
-        return ResponseEntity.ok(ApiResponse.success(jobsPage.map(DtoMapper::toJobPostingResponse)));
+        return ResponseEntity.ok(ApiResponse.success(jobsPage));
     }
 
     // GET /api/v1/jobs/{id} - Get single job (public)
     @GetMapping("/{id}")
     public ResponseEntity<ApiResponse<JobPostingResponse>> getJobById(@PathVariable Long id) {
-        JobPosting job = jobPostingService.getJobById(id);
-        return ResponseEntity.ok(ApiResponse.success(DtoMapper.toJobPostingResponse(job)));
+        JobPostingResponse job = jobPostingService.getJobById(id);
+        return ResponseEntity.ok(ApiResponse.success(job));
     }
 
     // GET /api/v1/jobs/search - Search jobs with filters
@@ -73,23 +71,19 @@ public class JobPostingController {
                 : Sort.by(sortBy).descending();
 
         Pageable pageable = PageRequest.of(page, size, sort);
-        Page<JobPosting> jobsPage = jobPostingService.searchJobs(
+        Page<JobPostingResponse> jobsPage = jobPostingService.searchJobs(
                 keyword, location, experienceLevel, employmentType, pageable
         );
 
-        return ResponseEntity.ok(ApiResponse.success(jobsPage.map(DtoMapper::toJobPostingResponse)));
+        return ResponseEntity.ok(ApiResponse.success(jobsPage));
     }
-
 
     // GET /api/v1/jobs/my-jobs - Get recruiter's own jobs
     @GetMapping("/my-jobs")
     @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<List<JobPostingResponse>>> getMyJobs(Authentication authentication) {
         User user = getAuthenticatedUser(authentication);
-        List<JobPostingResponse> responses = jobPostingService.getActiveJobsByUser(user.getId())
-                .stream()
-                .map(DtoMapper::toJobPostingResponse)
-                .toList();
+        List<JobPostingResponse> responses = jobPostingService.getActiveJobsByUser(user.getId());
 
         return ResponseEntity.ok(ApiResponse.success(responses));
     }
@@ -102,14 +96,15 @@ public class JobPostingController {
             Authentication authentication
     ) {
         User user = getAuthenticatedUser(authentication);
-        JobPosting job = jobPostingService.createJob(
+        JobPostingResponse job = jobPostingService.createJob(
                 user.getId(), request.getTitle(), request.getDescription(),
                 request.getRequiredSkills(), request.getExperienceLevel(),
-                request.getEmploymentType(), request.getLocation(), request.getSalaryRange(), request.getCompanyName()
+                request.getEmploymentType(), request.getLocation(),
+                request.getSalaryRange(), request.getCompanyName()
         );
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Job created successfully", DtoMapper.toJobPostingResponse(job)));
+                .body(ApiResponse.success("Job created successfully", job));
     }
 
     // PUT /api/v1/jobs/{id} - Update job
@@ -121,19 +116,22 @@ public class JobPostingController {
             Authentication authentication
     ) {
         User user = getAuthenticatedUser(authentication);
-        JobPosting job = jobPostingService.updateJob(
+        JobPostingResponse job = jobPostingService.updateJob(
                 id, user.getId(), request.getTitle(), request.getDescription(),
                 request.getRequiredSkills(), request.getExperienceLevel(),
                 request.getEmploymentType(), request.getLocation(), request.getSalaryRange()
         );
 
-        return ResponseEntity.ok(ApiResponse.success("Job updated successfully", DtoMapper.toJobPostingResponse(job)));
+        return ResponseEntity.ok(ApiResponse.success("Job updated successfully", job));
     }
 
     // PATCH /api/v1/jobs/{id}/deactivate - Deactivate job
     @PatchMapping("/{id}/deactivate")
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<ApiResponse<Void>> deactivateJob(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<ApiResponse<Void>> deactivateJob(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
         User user = getAuthenticatedUser(authentication);
         jobPostingService.deactivateJob(id, user.getId());
         return ResponseEntity.ok(ApiResponse.success("Job deactivated successfully", null));
@@ -142,7 +140,10 @@ public class JobPostingController {
     // DELETE /api/v1/jobs/{id} - Delete job
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<ApiResponse<Void>> deleteJob(@PathVariable Long id, Authentication authentication) {
+    public ResponseEntity<ApiResponse<Void>> deleteJob(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
         User user = getAuthenticatedUser(authentication);
         jobPostingService.deleteJob(id, user.getId());
         return ResponseEntity.ok(ApiResponse.success("Job deleted successfully", null));

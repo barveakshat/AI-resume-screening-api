@@ -1,5 +1,7 @@
 package com.resumescreening.api.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.resumescreening.api.model.enums.Role;
 import jakarta.persistence.*;
@@ -61,22 +63,11 @@ public class User {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    // Relationships
-
-    /**
-     * One user can create many job postings (if recruiter).
-     * mappedBy = "user" means JobPosting entity has a 'user' field.
-     * cascade = ALL means if we delete a user, delete their jobs too.
-     * orphanRemoval = true means if job is removed from list, delete it.
-     */
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    @JsonManagedReference
+    @JsonIgnore
     private List<JobPosting> jobPostings = new ArrayList<>();
 
-    /**
-     * One user can upload many resumes.
-     * Both recruiters and candidates can upload resumes.
-     */
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    @JsonIgnore
     private List<Resume> resumes = new ArrayList<>();
 }

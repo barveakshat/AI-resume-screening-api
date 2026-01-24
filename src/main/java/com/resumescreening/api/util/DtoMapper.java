@@ -27,7 +27,11 @@ public class DtoMapper {
 
     // JobPosting to JobPostingResponse
     public static JobPostingResponse toJobPostingResponse(JobPosting job) {
-        return JobPostingResponse.builder()
+        if (job == null) {
+            return null;
+        }
+
+        JobPostingResponse.JobPostingResponseBuilder builder = JobPostingResponse.builder()
                 .id(job.getId())
                 .title(job.getTitle())
                 .description(job.getDescription())
@@ -36,9 +40,11 @@ public class DtoMapper {
                 .employmentType(job.getEmploymentType())
                 .location(job.getLocation())
                 .salaryRange(job.getSalaryRange())
+                .companyName(job.getCompanyName())
                 .isActive(job.getIsActive())
-                .createdAt(job.getCreatedAt())
-                .build();
+                .createdAt(job.getCreatedAt());
+
+        return builder.build();
     }
 
     // Resume to ResumeResponse

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.resumescreening.api.exception.ResourceNotFoundException;
 import com.resumescreening.api.model.dto.ParsedResumeData;
 import com.resumescreening.api.model.dto.ScreeningAnalysis;
+import com.resumescreening.api.model.dto.response.ApplicationResponse;
+import com.resumescreening.api.model.dto.response.ScreeningResultResponse;
 import com.resumescreening.api.model.entity.Application;
 import com.resumescreening.api.model.entity.JobPosting;
 import com.resumescreening.api.model.entity.Resume;
@@ -12,6 +14,7 @@ import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.model.enums.ApplicationStatus;
 import com.resumescreening.api.model.enums.Recommendation;
 import com.resumescreening.api.repository.ScreeningResultRepository;
+import com.resumescreening.api.util.DtoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,7 +25,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,10 +37,10 @@ public class ScreeningService {
     private final ObjectMapper objectMapper;
 
     /**
-     * ✅ NEW: Screen a single application
+     * ✅ Screen a single application
      */
     @Transactional
-    public ScreeningResult screenApplication(Application application) {
+    public ScreeningResultResponse screenApplication(Application application) {
         long startTime = System.currentTimeMillis();
 
         try {
@@ -97,7 +99,7 @@ public class ScreeningService {
             log.info("Screening completed: Score={}, Recommendation={}, Time={}ms",
                     result.getMatchScore(), result.getRecommendation(), processingTime);
 
-            return result;
+            return DtoMapper.toScreeningResultResponse(result);
 
         } catch (Exception e) {
             log.error("Error screening application: {}", e.getMessage(), e);
@@ -106,23 +108,25 @@ public class ScreeningService {
     }
 
     @Transactional
-    public List<ScreeningResult> batchScreenApplications(Long jobId, User recruiter) {
+    public List<ScreeningResultResponse> batchScreenApplications(Long jobId, User recruiter) {
         log.info("Batch screening applications for job {}", jobId);
 
-        List<Application> applications = applicationService.getApplicationsForJob(jobId, recruiter);
-        List<ScreeningResult> results = new ArrayList<>();
+        List<ApplicationResponse> applications = applicationService.getApplicationsForJob(jobId, recruiter);
+        List<ScreeningResultResponse> results = new ArrayList<>();
 
-        for (Application application : applications) {
+        for (ApplicationResponse appResponse : applications) {
             try {
                 // Skip if already screened
-                if (!screeningRepository.existsByApplicationId(application.getId())) {
-                    ScreeningResult result = screenApplication(application);
+                if (!screeningRepository.existsByApplicationId(appResponse.getId())) {
+                    // Get the application entity
+                    Application application = applicationService.getApplicationEntityById(appResponse.getId());
+                    ScreeningResultResponse result = screenApplication(application);
                     results.add(result);
                 } else {
-                    log.info("Skipping already screened application: {}", application.getId());
+                    log.info("Skipping already screened application: {}", appResponse.getId());
                 }
             } catch (Exception e) {
-                log.error("Error screening application {}: {}", application.getId(), e.getMessage());
+                log.error("Error screening application {}: {}", appResponse.getId(), e.getMessage());
             }
         }
 
@@ -130,25 +134,36 @@ public class ScreeningService {
         return results;
     }
 
-    public ScreeningResult getScreeningResult(Long screeningId) {
+    public ScreeningResultResponse getScreeningResult(Long screeningId) {
+        ScreeningResult result = getScreeningResultEntityById(screeningId);
+        return DtoMapper.toScreeningResultResponse(result);
+    }
+
+    // Internal method to get entity
+    public ScreeningResult getScreeningResultEntityById(Long screeningId) {
         return screeningRepository.findById(screeningId)
                 .orElseThrow(() -> new ResourceNotFoundException("Screening result not found: " + screeningId));
     }
 
-
-    public List<ScreeningResult> getScreeningResultsByJobId(Long jobId) {
-        return screeningRepository.findByApplicationJobPostingId(jobId);
+    public List<ScreeningResultResponse> getScreeningResultsByJobId(Long jobId) {
+        List<ScreeningResult> results = screeningRepository.findByApplicationJobPostingId(jobId);
+        return results.stream()
+                .map(DtoMapper::toScreeningResultResponse)
+                .toList();
     }
 
-    public List<ScreeningResult> getTopCandidates(Long jobId) {
-        List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
+    public List<ScreeningResultResponse> getTopCandidates(Long jobId) {
+        List<ScreeningResultResponse> results = getScreeningResultsByJobId(jobId);
         return results.stream()
                 .sorted((r1, r2) -> Integer.compare(r2.getMatchScore(), r1.getMatchScore()))
-                .collect(Collectors.toList());
+                .toList();
     }
 
-    public List<ScreeningResult> getCandidatesByRecommendation(Long jobId, Recommendation recommendation) {
-        return screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation);
+    public List<ScreeningResultResponse> getCandidatesByRecommendation(Long jobId, Recommendation recommendation) {
+        List<ScreeningResult> results = screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation);
+        return results.stream()
+                .map(DtoMapper::toScreeningResultResponse)
+                .toList();
     }
 
     public boolean applicationAlreadyScreened(Long applicationId) {
@@ -156,7 +171,7 @@ public class ScreeningService {
     }
 
     public ScreeningStatistics getScreeningStatistics(Long jobId) {
-        List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
+        List<ScreeningResult> results = screeningRepository.findByApplicationJobPostingId(jobId);
 
         long totalScreened = results.size();
         long strongFit = results.stream()
@@ -188,7 +203,7 @@ public class ScreeningService {
     }
 
     public double getAverageScoreForJob(Long jobId) {
-        List<ScreeningResult> results = getScreeningResultsByJobId(jobId);
+        List<ScreeningResult> results = screeningRepository.findByApplicationJobPostingId(jobId);
         return results.stream()
                 .mapToInt(ScreeningResult::getMatchScore)
                 .average()
@@ -196,7 +211,12 @@ public class ScreeningService {
     }
 
     public long countByRecommendation(Long jobId, Recommendation recommendation) {
-        return getCandidatesByRecommendation(jobId, recommendation).size();
+        return screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation).size();
+    }
+
+    public Optional<ScreeningResultResponse> getScreeningResultByApplicationId(Long applicationId) {
+        Optional<ScreeningResult> result = screeningRepository.findByApplicationId(applicationId);
+        return result.map(DtoMapper::toScreeningResultResponse);
     }
 
     // ==================== PRIVATE HELPER METHODS ====================
@@ -296,10 +316,6 @@ public class ScreeningService {
         } else {
             return Recommendation.POOR_FIT;
         }
-    }
-
-    public Optional<ScreeningResult> getScreeningResultByApplicationId(Long id) {
-        return screeningRepository.findByApplicationId(id);
     }
 
     /**

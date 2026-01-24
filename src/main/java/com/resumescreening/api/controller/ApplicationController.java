@@ -3,8 +3,6 @@ package com.resumescreening.api.controller;
 import com.resumescreening.api.model.dto.request.ApplyJobRequest;
 import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.ApplicationResponse;
-import com.resumescreening.api.util.DtoMapper;
-import com.resumescreening.api.model.entity.Application;
 import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.model.enums.ApplicationStatus;
 import com.resumescreening.api.service.ApplicationService;
@@ -22,7 +20,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/v1/applications")
@@ -39,20 +36,18 @@ public class ApplicationController {
             @Valid @RequestBody ApplyJobRequest request,
             Authentication authentication
     ) {
-        User candidate = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User candidate = getAuthenticatedUser(authentication);
 
-        Application application = applicationService.applyToJob(
+        ApplicationResponse applicationResponse = applicationService.applyToJob(
                 request.getJobId(),
                 request.getResumeId(),
                 request.getCoverLetter(),
                 candidate
         );
 
-        ApplicationResponse response = DtoMapper.toApplicationResponse(application);
         return ResponseEntity
                 .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Application submitted successfully", response));
+                .body(ApiResponse.success("Application submitted successfully", applicationResponse));
     }
 
     // CANDIDATE: View my applications
@@ -61,14 +56,9 @@ public class ApplicationController {
     public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getMyApplications(
             Authentication authentication
     ) {
-        User candidate = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User candidate = getAuthenticatedUser(authentication);
 
-        List<ApplicationResponse> applications = applicationService
-                .getMyCandidateApplications(candidate)
-                .stream()
-                .map(DtoMapper::toApplicationResponse)
-                .collect(Collectors.toList());
+        List<ApplicationResponse> applications = applicationService.getMyCandidateApplications(candidate);
 
         return ResponseEntity.ok(ApiResponse.success(applications));
     }
@@ -76,45 +66,48 @@ public class ApplicationController {
     // CANDIDATE: Withdraw application
     @PatchMapping("/{id}/withdraw")
     @PreAuthorize("hasRole('CANDIDATE')")
-    public ResponseEntity<ApiResponse<String>> withdrawApplication(
+    public ResponseEntity<ApiResponse<Void>> withdrawApplication(
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User candidate = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User candidate = getAuthenticatedUser(authentication);
 
         applicationService.withdrawApplication(id, candidate);
 
-        return ResponseEntity.ok(ApiResponse.success(null, "Application withdrawn successfully"));
+        return ResponseEntity.ok(ApiResponse.success("Application withdrawn successfully", null));
     }
 
-    // RECRUITER: View all applications for their job
+    // RECRUITER: View all applications for their job (with pagination)
     @GetMapping("/job/{jobId}")
     @PreAuthorize("hasRole('RECRUITER')")
-    public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getApplicationsForJob(
+    public ResponseEntity<ApiResponse<?>> getApplicationsForJob(
             @PathVariable Long jobId,
             @RequestParam(required = false) ApplicationStatus status,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "appliedAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
             Authentication authentication
     ) {
-        User recruiter = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User recruiter = getAuthenticatedUser(authentication);
 
-        List<Application> applications;
         if (status != null) {
-            applications = applicationService.getApplicationsByStatus(jobId, status, recruiter);
+            // If filtering by status, return a list
+            List<ApplicationResponse> applications =
+                    applicationService.getApplicationsByStatus(jobId, status, recruiter);
+            return ResponseEntity.ok(ApiResponse.success(applications));
         } else {
-            Pageable pageable = PageRequest.of(page, size, Sort.by("appliedAt").descending());
-            Page<Application> applicationPage = applicationService.getApplicationsForJobPaginated(jobId, recruiter, pageable);
-            applications = applicationPage.getContent();
+            // Return paginated results
+            Sort sort = sortDir.equalsIgnoreCase("ASC")
+                    ? Sort.by(sortBy).ascending()
+                    : Sort.by(sortBy).descending();
+
+            Pageable pageable = PageRequest.of(page, size, sort);
+            Page<ApplicationResponse> applicationPage =
+                    applicationService.getApplicationsForJobPaginated(jobId, recruiter, pageable);
+
+            return ResponseEntity.ok(ApiResponse.success(applicationPage));
         }
-
-        List<ApplicationResponse> responses = applications.stream()
-                .map(DtoMapper::toApplicationResponse)
-                .collect(Collectors.toList());
-
-        return ResponseEntity.ok(ApiResponse.success(responses));
     }
 
     // RECRUITER: Update application status
@@ -125,11 +118,9 @@ public class ApplicationController {
             @RequestParam ApplicationStatus status,
             Authentication authentication
     ) {
-        User recruiter = userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User recruiter = getAuthenticatedUser(authentication);
 
-        Application application = applicationService.updateApplicationStatus(id, status, recruiter);
-        ApplicationResponse response = DtoMapper.toApplicationResponse(application);
+        ApplicationResponse response = applicationService.updateApplicationStatus(id, status, recruiter);
 
         return ResponseEntity.ok(ApiResponse.success("Application status updated", response));
     }
@@ -141,10 +132,27 @@ public class ApplicationController {
             @PathVariable Long jobId,
             Authentication authentication
     ) {
-        userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        getAuthenticatedUser(authentication);
 
         long count = applicationService.countApplicationsForJob(jobId);
         return ResponseEntity.ok(ApiResponse.success(count));
+    }
+
+    // Get single application details
+    @GetMapping("/{id}")
+    @PreAuthorize("hasAnyRole('CANDIDATE', 'RECRUITER')")
+    public ResponseEntity<ApiResponse<ApplicationResponse>> getApplicationDetails(
+            @PathVariable Long id,
+            Authentication authentication
+    ) {
+        getAuthenticatedUser(authentication);
+
+        ApplicationResponse response = applicationService.getApplicationById(id);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    private User getAuthenticatedUser(Authentication authentication) {
+        return userService.findByEmail(authentication.getName())
+                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

@@ -1,6 +1,7 @@
 package com.resumescreening.api.model.entity;
 
-import com.fasterxml.jackson.annotation.JsonBackReference;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.resumescreening.api.converter.StringListConverter;
 import com.resumescreening.api.model.enums.EmploymentType;
 import com.resumescreening.api.model.enums.ExperienceLevel;
@@ -45,7 +46,7 @@ public class JobPosting {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
-    @JsonBackReference
+    @JsonIgnore
     private User user;
 
     @Column(nullable = false, columnDefinition = "VARCHAR(255)")
@@ -56,7 +57,8 @@ public class JobPosting {
 
 
     @Convert(converter = StringListConverter.class)
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "required_skills", columnDefinition = "TEXT")
+    @Basic(fetch = FetchType.EAGER)
     private List<String> requiredSkills;
 
     @Enumerated(EnumType.STRING)
@@ -88,6 +90,7 @@ public class JobPosting {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "jobPosting", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"jobPosting", "candidate", "resume"})
     private List<Application> applications = new ArrayList<>();
 
     public JobPosting(User user, String title, String description) {

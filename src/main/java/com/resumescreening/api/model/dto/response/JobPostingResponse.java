@@ -1,5 +1,6 @@
 package com.resumescreening.api.model.dto.response;
 
+import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.model.enums.EmploymentType;
 import com.resumescreening.api.model.enums.ExperienceLevel;
 import lombok.AllArgsConstructor;
@@ -18,6 +19,7 @@ import java.util.List;
 public class JobPostingResponse implements Serializable {
 
     private Long id;
+    private User user;
     private String title;
     private String description;
     private List<String> requiredSkills;
@@ -27,6 +29,8 @@ public class JobPostingResponse implements Serializable {
     private String salaryRange;
     private Boolean isActive;
     private LocalDateTime createdAt;
+    private String companyName;
+
 
     // Statistics (optional)
     private Long totalCandidates;
