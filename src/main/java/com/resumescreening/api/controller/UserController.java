@@ -21,7 +21,7 @@ public class UserController {
 
     private final UserService userService;
 
-    @PutMapping("/profile")
+    @PutMapping("/updateprofile")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
             @Valid @RequestBody UpdateProfileRequest request) {
         Long userId = getCurrentUserId();
@@ -50,7 +50,7 @@ public class UserController {
     }
 
 
-    @DeleteMapping("/account")
+    @DeleteMapping("/deactivate")
     public ResponseEntity<ApiResponse<Void>> deactivateAccount() {
         Long userId = getCurrentUserId();
         userService.deactivateAccount(userId);

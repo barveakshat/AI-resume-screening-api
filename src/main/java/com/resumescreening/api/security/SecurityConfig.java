@@ -30,7 +30,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true) // ✅ Enable @PreAuthorize
+@EnableMethodSecurity() // ✅ Enable @PreAuthorize
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -54,7 +54,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration config) {
         return config.getAuthenticationManager();
     }
 
@@ -94,7 +94,7 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) {
         http
                 // ✅ Disable CSRF (OK for stateless JWT API)
                 .csrf(AbstractHttpConfigurer::disable)
@@ -106,6 +106,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         // Public endpoints
                         .requestMatchers("/api/v1/auth/**").permitAll()
+                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-resources/**", "/webjars/**").permitAll()
+                        .requestMatchers("/actuator/**").permitAll()
 
                         // Job endpoints - view only for public
                         .requestMatchers(HttpMethod.GET, "/api/v1/jobs").permitAll()

@@ -51,16 +51,16 @@ public class RedisConfig {
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
                 .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(jsonSerializer))
                 .disableCachingNullValues();
-        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
-        cacheConfigurations.put("jobPostings", config.entryTtl(Duration.ofHours(2)));
-        cacheConfigurations.put("resumes", config.entryTtl(Duration.ofHours(4)));
-        cacheConfigurations.put("screeningResults", config.entryTtl(Duration.ofMinutes(30)));
-        cacheConfigurations.put("users", config.entryTtl(Duration.ofHours(1)));
-        cacheConfigurations.put("applications", config.entryTtl(Duration.ofMinutes(15)));
+//        Map<String, RedisCacheConfiguration> cacheConfigurations = new HashMap<>();
+//        cacheConfigurations.put("jobPostings", config.entryTtl(Duration.ofHours(2)));
+//        cacheConfigurations.put("resumes", config.entryTtl(Duration.ofHours(4)));
+//        cacheConfigurations.put("screeningResults", config.entryTtl(Duration.ofMinutes(30)));
+//        cacheConfigurations.put("users", config.entryTtl(Duration.ofHours(1)));
+//        cacheConfigurations.put("applications", config.entryTtl(Duration.ofMinutes(15)));
 
         return RedisCacheManager.builder(connectionFactory)
                 .cacheDefaults(config)
-                .withInitialCacheConfigurations(cacheConfigurations)
+//                .withInitialCacheConfigurations(cacheConfigurations)
                 .build();
     }
 }
