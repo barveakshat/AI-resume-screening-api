@@ -5,16 +5,17 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import java.io.Serializable;
 import java.time.LocalDateTime;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ResumeResponse {
+public class ResumeResponse implements Serializable {
 
     private Long id;
+    private Long userId;  // Added for ownership validation
     private String fileName;
     private String filePath;
     private String fileType;

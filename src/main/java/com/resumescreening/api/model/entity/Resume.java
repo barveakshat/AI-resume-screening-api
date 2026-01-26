@@ -20,7 +20,6 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class Resume {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -35,7 +34,7 @@ public class Resume {
     @Column(nullable = false)
     private String filePath;
 
-    @Column(name = "file_type", length = 50)
+    @Column(name = "file_type")
     private String contentType;
 
     @Column

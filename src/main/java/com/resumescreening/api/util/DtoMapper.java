@@ -47,31 +47,25 @@ public class DtoMapper {
         return builder.build();
     }
 
-    // Resume to ResumeResponse
     public static ResumeResponse toResumeResponse(Resume resume) {
-        ParsedResumeData parsedData = null;
-        if (resume.getParsedData() != null) {
-            try {
-                parsedData = objectMapper.readValue(
-                        resume.getParsedData(),
-                        ParsedResumeData.class
-                );
-            } catch (Exception e) {
-                // Handle conversion error
-            }
+        if (resume == null) {
+            return null;
         }
-
+        Long userId = null;
+        if (resume.getUser() != null) {
+            userId = resume.getUser().getId();
+        }
         return ResumeResponse.builder()
                 .id(resume.getId())
+                .userId(userId)
                 .fileName(resume.getFileName())
                 .filePath(resume.getFilePath())
                 .fileType(resume.getContentType())
                 .fileSize(resume.getFileSize())
-                .parsedData(parsedData)
                 .uploadDate(resume.getUploadedAt())
+                .parsedData(null)
                 .build();
     }
-
     // ScreeningResult to ScreeningResultResponse
     public static ScreeningResultResponse toScreeningResultResponse(ScreeningResult result) {
         if (result == null) {

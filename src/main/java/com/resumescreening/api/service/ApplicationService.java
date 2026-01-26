@@ -38,8 +38,8 @@ public class ApplicationService {
             throw new IllegalStateException("This job posting is no longer active");
         }
 
-        // Validate resume belongs to candidate
-        Resume resume = resumeService.getResumeById(resumeId);
+        // Validate resume belongs to candidate - USE ENTITY METHOD
+        Resume resume = resumeService.getResumeEntityById(resumeId);
         if (!resume.getUser().getId().equals(candidate.getId())) {
             throw new UnauthorizedException("You can only apply with your own resumes");
         }
