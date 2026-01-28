@@ -17,6 +17,10 @@ import com.resumescreening.api.repository.ScreeningResultRepository;
 import com.resumescreening.api.util.DtoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,16 +34,17 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 public class ScreeningService {
-
     private final OpenAIService openAIService;
     private final ScreeningResultRepository screeningRepository;
     private final ApplicationService applicationService;
     private final ObjectMapper objectMapper;
 
-    /**
-     * ✅ Screen a single application
-     */
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "screeningResults", key = "#application.id"),
+            @CacheEvict(value = "jobScreeningResults", key = "#application.jobPosting.id"),
+            @CacheEvict(value = "screeningStats", key = "#application.jobPosting.id")
+    })
     public ScreeningResultResponse screenApplication(Application application) {
         long startTime = System.currentTimeMillis();
 
@@ -48,31 +53,21 @@ public class ScreeningService {
             if (screeningRepository.existsByApplicationId(application.getId())) {
                 throw new IllegalStateException("This application has already been screened");
             }
-
             log.info("Screening application {} for job {}",
                     application.getId(),
                     application.getJobPosting().getId());
 
             JobPosting job = application.getJobPosting();
             Resume resume = application.getResume();
-
-            // Build screening prompt
             String prompt = buildScreeningPrompt(job, resume);
-
-            // Call OpenAI
             String aiResponse = openAIService.complete(prompt);
-
-            // Parse response
             String cleanedResponse = openAIService.cleanJsonResponse(aiResponse);
             ScreeningAnalysis analysis = objectMapper.readValue(
                     cleanedResponse,
                     ScreeningAnalysis.class
             );
-
-            // Calculate processing time
             long processingTime = System.currentTimeMillis() - startTime;
 
-            // Create screening result with ALL fields
             ScreeningResult result = new ScreeningResult();
             result.setApplication(application);
             result.setJobPosting(application.getJobPosting());
@@ -92,15 +87,15 @@ public class ScreeningService {
             result.setProcessingTimeMs(processingTime);
             result = screeningRepository.save(result);
 
-            // Update application status
+            Hibernate.initialize(result.getApplication());
+            Hibernate.initialize(result.getJobPosting());
+
             application.setStatus(ApplicationStatus.UNDER_REVIEW);
             application.setScreenedAt(LocalDateTime.now());
 
             log.info("Screening completed: Score={}, Recommendation={}, Time={}ms",
                     result.getMatchScore(), result.getRecommendation(), processingTime);
-
             return DtoMapper.toScreeningResultResponse(result);
-
         } catch (Exception e) {
             log.error("Error screening application: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to screen application", e);
@@ -108,9 +103,12 @@ public class ScreeningService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "jobScreeningResults", key = "#jobId"),
+            @CacheEvict(value = "screeningStats", key = "#jobId")
+    })
     public List<ScreeningResultResponse> batchScreenApplications(Long jobId, User recruiter) {
         log.info("Batch screening applications for job {}", jobId);
-
         List<ApplicationResponse> applications = applicationService.getApplicationsForJob(jobId, recruiter);
         List<ScreeningResultResponse> results = new ArrayList<>();
 
@@ -129,22 +127,29 @@ public class ScreeningService {
                 log.error("Error screening application {}: {}", appResponse.getId(), e.getMessage());
             }
         }
-
         log.info("Batch screening completed: {} results", results.size());
         return results;
     }
 
+    @Cacheable(value = "screeningResults", key = "#screeningId")
+    @Transactional(readOnly = true)
     public ScreeningResultResponse getScreeningResult(Long screeningId) {
         ScreeningResult result = getScreeningResultEntityById(screeningId);
         return DtoMapper.toScreeningResultResponse(result);
     }
 
-    // Internal method to get entity
+    @Transactional(readOnly = true)
     public ScreeningResult getScreeningResultEntityById(Long screeningId) {
-        return screeningRepository.findById(screeningId)
+        ScreeningResult result = screeningRepository.findById(screeningId)
                 .orElseThrow(() -> new ResourceNotFoundException("Screening result not found: " + screeningId));
+        // Initialize relationships
+        Hibernate.initialize(result.getApplication());
+        Hibernate.initialize(result.getJobPosting());
+        return result;
     }
 
+    @Cacheable(value = "jobScreeningResults", key = "#jobId")
+    @Transactional(readOnly = true)
     public List<ScreeningResultResponse> getScreeningResultsByJobId(Long jobId) {
         List<ScreeningResult> results = screeningRepository.findByApplicationJobPostingId(jobId);
         return results.stream()
@@ -152,13 +157,16 @@ public class ScreeningService {
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<ScreeningResultResponse> getTopCandidates(Long jobId) {
+        // Reuses cached job screening results
         List<ScreeningResultResponse> results = getScreeningResultsByJobId(jobId);
         return results.stream()
                 .sorted((r1, r2) -> Integer.compare(r2.getMatchScore(), r1.getMatchScore()))
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public List<ScreeningResultResponse> getCandidatesByRecommendation(Long jobId, Recommendation recommendation) {
         List<ScreeningResult> results = screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation);
         return results.stream()
@@ -170,6 +178,8 @@ public class ScreeningService {
         return screeningRepository.existsByApplicationId(applicationId);
     }
 
+    @Cacheable(value = "screeningStats", key = "#jobId")
+    @Transactional(readOnly = true)
     public ScreeningStatistics getScreeningStatistics(Long jobId) {
         List<ScreeningResult> results = screeningRepository.findByApplicationJobPostingId(jobId);
 
@@ -214,6 +224,8 @@ public class ScreeningService {
         return screeningRepository.findByJobPostingIdAndRecommendation(jobId, recommendation).size();
     }
 
+
+    @Transactional(readOnly = true)
     public Optional<ScreeningResultResponse> getScreeningResultByApplicationId(Long applicationId) {
         Optional<ScreeningResult> result = screeningRepository.findByApplicationId(applicationId);
         return result.map(DtoMapper::toScreeningResultResponse);
@@ -222,7 +234,6 @@ public class ScreeningService {
     // ==================== PRIVATE HELPER METHODS ====================
 
     private String buildScreeningPrompt(JobPosting job, Resume resume) {
-        // Get parsed resume data
         ParsedResumeData parsedData = extractParsedData(resume);
 
         return String.format("""
@@ -273,9 +284,6 @@ public class ScreeningService {
         );
     }
 
-    /**
-     * Extract parsed data from resume
-     */
     private ParsedResumeData extractParsedData(Resume resume) {
         try {
             if (resume.getParsedData() == null) {
@@ -288,9 +296,6 @@ public class ScreeningService {
         }
     }
 
-    /**
-     * Format education for prompt
-     */
     private String formatEducation(ParsedResumeData data) {
         if (data.getEducation() == null || data.getEducation().isEmpty()) {
             return "Not specified";
@@ -303,9 +308,6 @@ public class ScreeningService {
                 edu.getYear() != null ? edu.getYear() : "Unknown");
     }
 
-    /**
-     * Determine recommendation based on score
-     */
     private Recommendation determineRecommendation(BigDecimal score) {
         if (score.compareTo(new BigDecimal("80")) >= 0) {
             return Recommendation.STRONG_FIT;
@@ -318,9 +320,6 @@ public class ScreeningService {
         }
     }
 
-    /**
-     * DTO for screening statistics
-     */
     public record ScreeningStatistics(
             long totalScreened,
             long strongFit,
