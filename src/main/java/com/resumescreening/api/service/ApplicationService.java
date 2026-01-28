@@ -14,11 +14,16 @@ import com.resumescreening.api.repository.ApplicationRepository;
 import com.resumescreening.api.util.DtoMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Hibernate;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -31,20 +36,19 @@ public class ApplicationService {
     private final ResumeService resumeService;
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "candidateApplications", key = "#candidate.id"),
+            @CacheEvict(value = "jobApplications", key = "#jobId")
+    })
     public ApplicationResponse applyToJob(Long jobId, Long resumeId, String coverLetter, User candidate) {
-        // Validate job exists and is active
         JobPostingResponse job = jobPostingService.getJobById(jobId);
         if (!job.getIsActive()) {
             throw new IllegalStateException("This job posting is no longer active");
         }
-
-        // Validate resume belongs to candidate - USE ENTITY METHOD
         Resume resume = resumeService.getResumeEntityById(resumeId);
         if (!resume.getUser().getId().equals(candidate.getId())) {
             throw new UnauthorizedException("You can only apply with your own resumes");
         }
-
-        // Check if already applied
         if (applicationRepository.existsByJobPostingIdAndCandidateId(jobId, candidate.getId())) {
             throw new ApplicationAlreadyExistsException("You have already applied to this job");
         }
@@ -52,7 +56,6 @@ public class ApplicationService {
         // Get job entity for relationship
         JobPosting jobEntity = jobPostingService.getJobEntityById(jobId);
 
-        // Create application
         Application application = Application.builder()
                 .jobPosting(jobEntity)
                 .candidate(candidate)
@@ -62,37 +65,43 @@ public class ApplicationService {
                 .build();
 
         Application savedApplication = applicationRepository.save(application);
+
+        // Initialize lazy relationships
+        Hibernate.initialize(savedApplication.getJobPosting());
+        Hibernate.initialize(savedApplication.getCandidate());
+        Hibernate.initialize(savedApplication.getResume());
+
         log.info("Application created: {} for job: {} by candidate: {}",
                 savedApplication.getId(), jobId, candidate.getId());
 
         return DtoMapper.toApplicationResponse(savedApplication);
     }
 
+    @Transactional(readOnly = true)
     public List<ApplicationResponse> getApplicationsForJob(Long jobId, User recruiter) {
         JobPostingResponse job = jobPostingService.getJobById(jobId);
-
-        // Verify recruiter owns the job
-        if (!job.getUser().getId().equals(recruiter.getId())) {
+        if (!job.getRecruiterId().equals(recruiter.getId())) {
             throw new UnauthorizedException("You can only view applications for your own jobs");
         }
-
         List<Application> applications = applicationRepository.findByJobPostingId(jobId);
         return applications.stream()
                 .map(DtoMapper::toApplicationResponse)
                 .toList();
     }
 
+    @Transactional(readOnly = true)
     public Page<ApplicationResponse> getApplicationsForJobPaginated(Long jobId, User recruiter, Pageable pageable) {
         JobPostingResponse job = jobPostingService.getJobById(jobId);
 
-        if (!job.getUser().getId().equals(recruiter.getId())) {
+        if (!job.getRecruiterId().equals(recruiter.getId())) {
             throw new UnauthorizedException("You can only view applications for your own jobs");
         }
-
         Page<Application> applicationPage = applicationRepository.findByJobPostingId(jobId, pageable);
         return applicationPage.map(DtoMapper::toApplicationResponse);
     }
 
+    @Cacheable(value = "candidateApplications", key = "#candidate.id")
+    @Transactional(readOnly = true)
     public List<ApplicationResponse> getMyCandidateApplications(User candidate) {
         List<Application> applications = applicationRepository.findByCandidateId(candidate.getId());
         return applications.stream()
@@ -100,58 +109,77 @@ public class ApplicationService {
                 .toList();
     }
 
+    @Cacheable(value = "applications", key = "#id")
+    @Transactional(readOnly = true)
     public ApplicationResponse getApplicationById(Long id) {
         Application application = getApplicationEntityById(id);
         return DtoMapper.toApplicationResponse(application);
     }
 
-    // Internal method to get entity
+    // Internal method to get entity with relationships initialized
+    @Transactional(readOnly = true)
     public Application getApplicationEntityById(Long id) {
-        return applicationRepository.findById(id)
+        Application application = applicationRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
+
+        // Initialize relationships to avoid lazy loading issues
+        Hibernate.initialize(application.getJobPosting());
+        Hibernate.initialize(application.getCandidate());
+        Hibernate.initialize(application.getResume());
+
+        return application;
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "applications", key = "#applicationId"),
+            @CacheEvict(value = "candidateApplications", allEntries = true),
+            @CacheEvict(value = "jobApplications", allEntries = true)
+    })
     public ApplicationResponse updateApplicationStatus(Long applicationId, ApplicationStatus status, User recruiter) {
         Application application = getApplicationEntityById(applicationId);
-
-        // Verify recruiter owns the job
         if (!application.getJobPosting().getUser().getId().equals(recruiter.getId())) {
             throw new UnauthorizedException("You can only update applications for your own jobs");
         }
-
         application.setStatus(status);
+        // Set screenedAt timestamp if status is being changed to UNDER_REVIEW
+        if (status == ApplicationStatus.UNDER_REVIEW && application.getScreenedAt() == null) {
+            application.setScreenedAt(LocalDateTime.now());
+        }
         Application updatedApplication = applicationRepository.save(application);
 
         log.info("Application status updated: {} to status: {} by recruiter: {}",
                 applicationId, status, recruiter.getId());
-
         return DtoMapper.toApplicationResponse(updatedApplication);
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "applications", key = "#applicationId"),
+            @CacheEvict(value = "candidateApplications", key = "#candidate.id")
+    })
     public void withdrawApplication(Long applicationId, User candidate) {
         Application application = getApplicationEntityById(applicationId);
-
-        // Verify candidate owns the application
         if (!application.getCandidate().getId().equals(candidate.getId())) {
             throw new UnauthorizedException("You can only withdraw your own applications");
         }
-
         application.setStatus(ApplicationStatus.WITHDRAWN);
         applicationRepository.save(application);
 
         log.info("Application withdrawn: {} by candidate: {}", applicationId, candidate.getId());
     }
 
+    // Simple count - no caching needed
     public long countApplicationsForJob(Long jobId) {
         return applicationRepository.countByJobPostingId(jobId);
     }
 
+    // Not cached - filtered results
+    @Transactional(readOnly = true)
     public List<ApplicationResponse> getApplicationsByStatus(Long jobId, ApplicationStatus status, User recruiter) {
         JobPostingResponse job = jobPostingService.getJobById(jobId);
 
-        if (!job.getUser().getId().equals(recruiter.getId())) {
+        if (!job.getRecruiterId().equals(recruiter.getId())) {
             throw new UnauthorizedException("You can only view applications for your own jobs");
         }
 

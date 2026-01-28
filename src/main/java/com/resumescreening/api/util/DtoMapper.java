@@ -2,12 +2,14 @@ package com.resumescreening.api.util;
 
 import com.resumescreening.api.model.dto.response.*;
 import com.resumescreening.api.model.entity.*;
-import com.resumescreening.api.model.dto.ParsedResumeData;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.hibernate.Hibernate;
 
 public class DtoMapper {
 
-    private static final ObjectMapper objectMapper = new ObjectMapper();
+    static {
+        new ObjectMapper();
+    }
 
     // User to UserResponse
     public static UserResponse toUserResponse(User user) {
@@ -25,7 +27,6 @@ public class DtoMapper {
                 .build();
     }
 
-    // JobPosting to JobPostingResponse
     public static JobPostingResponse toJobPostingResponse(JobPosting job) {
         if (job == null) {
             return null;
@@ -44,28 +45,16 @@ public class DtoMapper {
                 .isActive(job.getIsActive())
                 .createdAt(job.getCreatedAt());
 
+        // Extract user fields individually - THIS IS THE KEY PART
+        if (Hibernate.isInitialized(job.getUser()) && job.getUser() != null) {
+            builder.recruiterId(job.getUser().getId())
+                    .recruiterName(job.getUser().getFullName())
+                    .recruiterEmail(job.getUser().getEmail());
+        }
+
         return builder.build();
     }
 
-    public static ResumeResponse toResumeResponse(Resume resume) {
-        if (resume == null) {
-            return null;
-        }
-        Long userId = null;
-        if (resume.getUser() != null) {
-            userId = resume.getUser().getId();
-        }
-        return ResumeResponse.builder()
-                .id(resume.getId())
-                .userId(userId)
-                .fileName(resume.getFileName())
-                .filePath(resume.getFilePath())
-                .fileType(resume.getContentType())
-                .fileSize(resume.getFileSize())
-                .uploadDate(resume.getUploadedAt())
-                .parsedData(null)
-                .build();
-    }
     // ScreeningResult to ScreeningResultResponse
     public static ScreeningResultResponse toScreeningResultResponse(ScreeningResult result) {
         if (result == null) {
@@ -101,19 +90,34 @@ public class DtoMapper {
     }
 
     public static ApplicationResponse toApplicationResponse(Application application) {
-        return ApplicationResponse.builder()
+        if (application == null) {
+            return null;
+        }
+        ApplicationResponse.ApplicationResponseBuilder builder = ApplicationResponse.builder()
                 .id(application.getId())
-                .jobId(application.getJobPosting().getId())
-                .jobTitle(application.getJobPosting().getTitle())
-                .candidateId(application.getCandidate().getId())
-                .candidateName(application.getCandidate().getFullName())
-                .candidateEmail(application.getCandidate().getEmail())
-                .resumeId(application.getResume().getId())
-                .resumeTitle(application.getResume().getResumeTitle())
                 .status(application.getStatus())
                 .coverLetter(application.getCoverLetter())
                 .appliedAt(application.getAppliedAt())
-                .screenedAt(application.getScreenedAt())
-                .build();
+                .screenedAt(application.getScreenedAt());
+
+        // Safely access jobPosting
+        if (Hibernate.isInitialized(application.getJobPosting()) && application.getJobPosting() != null) {
+            builder.jobId(application.getJobPosting().getId())
+                    .jobTitle(application.getJobPosting().getTitle());
+        }
+
+        // Safely access candidate
+        if (Hibernate.isInitialized(application.getCandidate()) && application.getCandidate() != null) {
+            builder.candidateId(application.getCandidate().getId())
+                    .candidateName(application.getCandidate().getFullName())
+                    .candidateEmail(application.getCandidate().getEmail());
+        }
+
+        // Safely access resume
+        if (Hibernate.isInitialized(application.getResume()) && application.getResume() != null) {
+            builder.resumeId(application.getResume().getId())
+                    .resumeTitle(application.getResume().getFileName());
+        }
+        return builder.build();
     }
 }

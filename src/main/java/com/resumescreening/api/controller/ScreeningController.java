@@ -80,7 +80,7 @@ public class ScreeningController {
 
         // Get job and validate ownership
         JobPostingResponse job = jobPostingService.getJobById(request.getJobPostingId());
-        if (!job.getUser().getId().equals(user.getId())) {
+        if (!job.getRecruiterId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("You don't have permission to screen for this job"));
@@ -107,7 +107,7 @@ public class ScreeningController {
 
         // Validate ownership - need to check if user owns the job
         JobPostingResponse job = jobPostingService.getJobById(result.getJobPostingId());
-        if (!job.getUser().getId().equals(user.getId())) {
+        if (!job.getRecruiterId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("You don't have permission to view this screening result"));
@@ -126,7 +126,7 @@ public class ScreeningController {
 
         // Validate job ownership
         JobPostingResponse job = jobPostingService.getJobById(jobId);
-        if (!job.getUser().getId().equals(user.getId())) {
+        if (!job.getRecruiterId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("You don't have permission to view screening results for this job"));
@@ -147,7 +147,7 @@ public class ScreeningController {
 
         // Validate job ownership
         JobPostingResponse job = jobPostingService.getJobById(jobId);
-        if (!job.getUser().getId().equals(user.getId())) {
+        if (!job.getRecruiterId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Access denied"));
@@ -169,7 +169,7 @@ public class ScreeningController {
 
         // Validate job ownership
         JobPostingResponse job = jobPostingService.getJobById(jobId);
-        if (!job.getUser().getId().equals(user.getId())) {
+        if (!job.getRecruiterId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Access denied"));
@@ -191,7 +191,7 @@ public class ScreeningController {
 
         // Validate job ownership
         JobPostingResponse job = jobPostingService.getJobById(jobId);
-        if (!job.getUser().getId().equals(user.getId())) {
+        if (!job.getRecruiterId().equals(user.getId())) {
             return ResponseEntity
                     .status(HttpStatus.FORBIDDEN)
                     .body(ApiResponse.error("Access denied"));

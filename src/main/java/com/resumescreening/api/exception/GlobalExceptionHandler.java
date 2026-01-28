@@ -1,5 +1,6 @@
 package com.resumescreening.api.exception;
 
+import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -21,7 +22,16 @@ import java.util.List;
 @RestControllerAdvice
 @Slf4j
 public class GlobalExceptionHandler {
-
+    // Handle ApplicationAlreadyExistsException
+    @ExceptionHandler(ApplicationAlreadyExistsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleApplicationAlreadyExists(
+            ApplicationAlreadyExistsException ex
+    ) {
+        log.warn("Duplicate application attempt: {}", ex.getMessage());
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)  // 409 Conflict
+                .body(ApiResponse.error(ex.getMessage()));
+    }
     // Handle ResourceNotFoundException
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(

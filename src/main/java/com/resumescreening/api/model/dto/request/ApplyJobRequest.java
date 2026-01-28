@@ -10,11 +10,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class ApplyJobRequest {
 
-    @NotNull(message = "Job ID is required")
-    private Long jobId;
-
     @NotNull(message = "Resume ID is required")
     private Long resumeId;
 
-    private String coverLetter; // Optional
+    private String coverLetter;
 }

@@ -30,21 +30,21 @@ public class ApplicationController {
     private final UserService userService;
 
     // CANDIDATE: Apply to a job
-    @PostMapping("/apply")
+    @PostMapping("/job/{jobId}/apply")
     @PreAuthorize("hasRole('CANDIDATE')")
     public ResponseEntity<ApiResponse<ApplicationResponse>> applyToJob(
+            @PathVariable Long jobId,
             @Valid @RequestBody ApplyJobRequest request,
             Authentication authentication
     ) {
         User candidate = getAuthenticatedUser(authentication);
 
         ApplicationResponse applicationResponse = applicationService.applyToJob(
-                request.getJobId(),
+                jobId,
                 request.getResumeId(),
                 request.getCoverLetter(),
                 candidate
         );
-
         return ResponseEntity
                 .status(HttpStatus.CREATED)
                 .body(ApiResponse.success("Application submitted successfully", applicationResponse));
@@ -105,7 +105,6 @@ public class ApplicationController {
             Pageable pageable = PageRequest.of(page, size, sort);
             Page<ApplicationResponse> applicationPage =
                     applicationService.getApplicationsForJobPaginated(jobId, recruiter, pageable);
-
             return ResponseEntity.ok(ApiResponse.success(applicationPage));
         }
     }
@@ -133,7 +132,6 @@ public class ApplicationController {
             Authentication authentication
     ) {
         getAuthenticatedUser(authentication);
-
         long count = applicationService.countApplicationsForJob(jobId);
         return ResponseEntity.ok(ApiResponse.success(count));
     }

@@ -55,7 +55,6 @@ public class JobPosting {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;  // Full job description
 
-
     @Convert(converter = StringListConverter.class)
     @Column(name = "required_skills", columnDefinition = "TEXT")
     @Basic(fetch = FetchType.EAGER)

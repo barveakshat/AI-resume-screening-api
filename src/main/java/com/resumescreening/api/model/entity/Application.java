@@ -1,7 +1,6 @@
 package com.resumescreening.api.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.resumescreening.api.model.enums.ApplicationStatus;
 import jakarta.persistence.*;
 import lombok.*;

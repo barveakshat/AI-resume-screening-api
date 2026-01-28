@@ -112,13 +112,14 @@ public class SecurityConfig {
                         // Job endpoints - view only for public
                         .requestMatchers(HttpMethod.GET, "/api/v1/jobs").permitAll()
                         .requestMatchers(HttpMethod.GET, "/api/v1/jobs/{id}").permitAll()
+                        .requestMatchers("/api/v1/applications/**").authenticated()
 
                         // ✅ Resume endpoints - authenticated users only
                         .requestMatchers("/api/v1/auth/me").authenticated()
                         .requestMatchers("/api/v1/resumes/**").authenticated()
 
                         // ✅ Screening endpoints - authenticated users only
-                        .requestMatchers("/api/v1/screening/**").hasRole("RECRUITER")
+                        .requestMatchers("/api/v1/screening/**").authenticated()
 
                         // ✅ Analytics endpoints - authenticated users only
                         .requestMatchers("/api/v1/analytics/**").authenticated()

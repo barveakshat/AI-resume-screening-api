@@ -19,7 +19,6 @@ import java.util.List;
 public class JobPostingResponse implements Serializable {
 
     private Long id;
-    private User user;
     private String title;
     private String description;
     private List<String> requiredSkills;
@@ -30,7 +29,9 @@ public class JobPostingResponse implements Serializable {
     private Boolean isActive;
     private LocalDateTime createdAt;
     private String companyName;
-
+    private Long recruiterId;
+    private String recruiterName;
+    private String recruiterEmail;
 
     // Statistics (optional)
     private Long totalCandidates;
