@@ -65,9 +65,9 @@ mvnw.cmd
 
 # Environment variables and secrets
 .env
-*.env
 .env.local
-.env.*.local
+.env.production
+*.env
 
 # Application properties with secrets
 application-dev.yml

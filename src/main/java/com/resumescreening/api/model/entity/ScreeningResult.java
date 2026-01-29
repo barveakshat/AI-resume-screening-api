@@ -46,12 +46,12 @@ public class ScreeningResult {
     @Column(name = "education_match_score")
     private Integer educationMatchScore;
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "matched_skills", joinColumns = @JoinColumn(name = "screening_result_id"))
     @Column(name = "skill")
     private List<String> matchedSkills = new ArrayList<>();
 
-    @ElementCollection
+    @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "missing_skills", joinColumns = @JoinColumn(name = "screening_result_id"))
     @Column(name = "skill")
     private List<String> missingSkills = new ArrayList<>();
