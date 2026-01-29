@@ -1,6 +1,6 @@
 # 🎯 AI-Powered Resume Screening API
 
-An intelligent resume screening system built with Spring Boot that uses OpenAI's GPT models to automatically evaluate candidate resumes against job requirements.
+An intelligent resume screening system built with Spring Boot that uses Meta's Llama model to automatically evaluate candidate resumes against job requirements.
 
 ## 🚀 Features
 
@@ -18,7 +18,7 @@ An intelligent resume screening system built with Spring Boot that uses OpenAI's
 - **Database**: PostgreSQL 15+
 - **Cache**: Redis 7+
 - **Storage**: AWS S3
-- **AI**: openai/gpt-oss-120b:free
+- **AI**: meta-llama/llama-3.3-70b-instruct:free
 - **Security**: Spring Security + JWT
 - **Build Tool**: Maven
 
