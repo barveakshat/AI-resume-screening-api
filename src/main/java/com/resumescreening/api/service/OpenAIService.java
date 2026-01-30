@@ -26,6 +26,9 @@ public class OpenAIService {
     @Value("${openai.api.model}")
     private String model;
 
+    @Value("${app.url:http://localhost:8080}")
+    private String appUrl;
+
     public OpenAIService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper,
                          @Value("${openai.api.url}") String baseUrl) {
         // Use the base URL from config (OpenRouter URL)
@@ -50,7 +53,7 @@ public class OpenAIService {
             String response = webClient.post()
                     .uri("") // Empty since we're using the full base URL
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
-                    .header("HTTP-Referer", "http://localhost:8080")
+                    .header("HTTP-Referer", appUrl)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(requestBody)
                     .retrieve()

@@ -54,6 +54,9 @@ management:
     health:
       show-details: when-authorized
 
+app:
+  url: ${APP_URL:http://localhost:8080}
+
 # Swagger/OpenAPI
 springdoc:
   api-docs:
