@@ -71,9 +71,6 @@ mvnw.cmd
 
 # Application properties with secrets
 application-dev.yml
-application-prod.yml
-src/main/resources/application-dev.yml
-src/main/resources/application-prod.yml
 
 # AWS credentials
 *.pem
