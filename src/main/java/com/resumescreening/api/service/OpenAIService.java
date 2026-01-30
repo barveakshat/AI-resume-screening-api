@@ -26,7 +26,7 @@ public class OpenAIService {
     @Value("${openai.api.model}")
     private String model;
 
-    @Value("${app.url:http://localhost:8080}")
+    @Value("${app.url")
     private String appUrl;
 
     public OpenAIService(WebClient.Builder webClientBuilder, ObjectMapper objectMapper,
@@ -46,7 +46,7 @@ public class OpenAIService {
             ));
             requestBody.put("temperature", 0.3);
             requestBody.put("max_tokens", 2000);
-
+            requestBody.put("route", "fallback");
             log.debug("Calling OpenAI API with model: {}", model);
 
 
