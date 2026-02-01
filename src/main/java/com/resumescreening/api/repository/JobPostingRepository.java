@@ -21,15 +21,15 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     // Paginated active jobs
     Page<JobPosting> findByIsActiveTrue(Pageable pageable);
 
-    @Query("""
-    SELECT j FROM JobPosting j
-    WHERE j.isActive = true
-    AND (:keyword IS NULL OR LOWER(j.title) LIKE LOWER(CONCAT('%', :keyword, '%')) 
-         OR LOWER(j.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
-    AND (:location IS NULL OR LOWER(j.location) LIKE LOWER(CONCAT('%', :location, '%')))
-    AND (:experienceLevel IS NULL OR CAST(j.experienceLevel AS string) = :experienceLevel)
-    AND (:employmentType IS NULL OR CAST(j.employmentType AS string) = :employmentType)
-    """)
+    @Query(value = """
+    SELECT * FROM job_postings jp
+    WHERE jp.is_active = true
+    AND (:keyword IS NULL OR LOWER(jp.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
+         OR LOWER(jp.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
+    AND (:location IS NULL OR LOWER(jp.location) LIKE LOWER(CONCAT('%', :location, '%')))
+    AND (:experienceLevel IS NULL OR CAST(jp.experience_level AS VARCHAR) = :experienceLevel)
+    AND (:employmentType IS NULL OR CAST(jp.employment_type AS VARCHAR) = :employmentType)
+    """, nativeQuery = true)
     Page<JobPosting> searchJobs(  // Returns entities, not DTOs
                                   @Param("keyword") String keyword,
                                   @Param("location") String location,

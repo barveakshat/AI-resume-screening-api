@@ -57,7 +57,6 @@ public class JobPosting {
 
     @Convert(converter = StringListConverter.class)
     @Column(name = "required_skills", columnDefinition = "TEXT")
-    @Basic(fetch = FetchType.EAGER)
     private List<String> requiredSkills;
 
     @Enumerated(EnumType.STRING)

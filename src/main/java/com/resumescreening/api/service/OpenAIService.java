@@ -57,13 +57,12 @@ public class OpenAIService {
             ));
             requestBody.put("temperature", 0.3);
             requestBody.put("max_tokens", 2000);
-
             log.info("Request body: {}", objectMapper.writeValueAsString(requestBody));
 
             String response = webClient.post()
                     .uri("")
                     .header(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey)
-                    .header("HTTP-Referer", appUrl)
+                    .header("HTTP-Referer", "http://localhost:8080")
                     .header("X-Title", "Resume Screening API")
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(requestBody)
