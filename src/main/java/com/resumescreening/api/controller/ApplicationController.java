@@ -6,7 +6,7 @@ import com.resumescreening.api.model.dto.response.ApplicationResponse;
 import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.model.enums.ApplicationStatus;
 import com.resumescreening.api.service.ApplicationService;
-import com.resumescreening.api.service.UserService;
+import com.resumescreening.api.service.CurrentUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,7 +27,7 @@ import java.util.List;
 public class ApplicationController {
 
     private final ApplicationService applicationService;
-    private final UserService userService;
+    private final CurrentUserService currentUserService;
 
     // CANDIDATE: Apply to a job
     @PostMapping("/job/{jobId}/apply")
@@ -37,7 +37,7 @@ public class ApplicationController {
             @Valid @RequestBody ApplyJobRequest request,
             Authentication authentication
     ) {
-        User candidate = getAuthenticatedUser(authentication);
+        User candidate = currentUserService.getCurrentUser(authentication);
 
         ApplicationResponse applicationResponse = applicationService.applyToJob(
                 jobId,
@@ -56,7 +56,7 @@ public class ApplicationController {
     public ResponseEntity<ApiResponse<List<ApplicationResponse>>> getMyApplications(
             Authentication authentication
     ) {
-        User candidate = getAuthenticatedUser(authentication);
+        User candidate = currentUserService.getCurrentUser(authentication);
 
         List<ApplicationResponse> applications = applicationService.getMyCandidateApplications(candidate);
 
@@ -70,7 +70,7 @@ public class ApplicationController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User candidate = getAuthenticatedUser(authentication);
+        User candidate = currentUserService.getCurrentUser(authentication);
 
         applicationService.withdrawApplication(id, candidate);
 
@@ -89,7 +89,7 @@ public class ApplicationController {
             @RequestParam(defaultValue = "DESC") String sortDir,
             Authentication authentication
     ) {
-        User recruiter = getAuthenticatedUser(authentication);
+        User recruiter = currentUserService.getCurrentUser(authentication);
 
         if (status != null) {
             // If filtering by status, return a list
@@ -117,7 +117,7 @@ public class ApplicationController {
             @RequestParam ApplicationStatus status,
             Authentication authentication
     ) {
-        User recruiter = getAuthenticatedUser(authentication);
+        User recruiter = currentUserService.getCurrentUser(authentication);
 
         ApplicationResponse response = applicationService.updateApplicationStatus(id, status, recruiter);
 
@@ -131,7 +131,7 @@ public class ApplicationController {
             @PathVariable Long jobId,
             Authentication authentication
     ) {
-        User recruiter = getAuthenticatedUser(authentication);
+        User recruiter = currentUserService.getCurrentUser(authentication);
         long count = applicationService.countApplicationsForJob(jobId, recruiter);
         return ResponseEntity.ok(ApiResponse.success(count));
     }
@@ -143,13 +143,8 @@ public class ApplicationController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
         ApplicationResponse response = applicationService.getApplicationById(id, user);
         return ResponseEntity.ok(ApiResponse.success(response));
-    }
-
-    private User getAuthenticatedUser(Authentication authentication) {
-        return userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

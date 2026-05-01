@@ -1,17 +1,17 @@
 package com.resumescreening.api.controller;
 
-import com.resumescreening.api.model.dto.request.UpdateProfileRequest;
 import com.resumescreening.api.model.dto.request.ChangePasswordRequest;
+import com.resumescreening.api.model.dto.request.UpdateProfileRequest;
 import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.UserResponse;
 import com.resumescreening.api.model.entity.User;
+import com.resumescreening.api.service.CurrentUserService;
 import com.resumescreening.api.service.UserService;
 import com.resumescreening.api.util.DtoMapper;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -20,11 +20,14 @@ import org.springframework.web.bind.annotation.*;
 public class UserController {
 
     private final UserService userService;
+    private final CurrentUserService currentUserService;
 
     @PutMapping("/updateprofile")
     public ResponseEntity<ApiResponse<UserResponse>> updateProfile(
-            @Valid @RequestBody UpdateProfileRequest request) {
-        Long userId = getCurrentUserId();
+            @Valid @RequestBody UpdateProfileRequest request,
+            Authentication authentication
+    ) {
+        Long userId = currentUserService.getCurrentUserId(authentication);
         User user = userService.updateProfile(
                 userId,
                 request.getFullName(),
@@ -37,31 +40,22 @@ public class UserController {
 
     @PutMapping("/password")
     public ResponseEntity<ApiResponse<Void>> changePassword(
-            @Valid @RequestBody ChangePasswordRequest request) {
-
+            @Valid @RequestBody ChangePasswordRequest request,
+            Authentication authentication
+    ) {
         if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            return ResponseEntity.badRequest()
-                    .body(ApiResponse.error("New password and confirmation do not match"));
+            throw new IllegalArgumentException("New password and confirmation do not match");
         }
 
-        Long userId = getCurrentUserId();
+        Long userId = currentUserService.getCurrentUserId(authentication);
         userService.changePassword(userId, request.getOldPassword(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.success("Password changed successfully", null));
     }
 
-
     @DeleteMapping("/deactivate")
-    public ResponseEntity<ApiResponse<Void>> deactivateAccount() {
-        Long userId = getCurrentUserId();
+    public ResponseEntity<ApiResponse<Void>> deactivateAccount(Authentication authentication) {
+        Long userId = currentUserService.getCurrentUserId(authentication);
         userService.deactivateAccount(userId);
         return ResponseEntity.ok(ApiResponse.success("Account deactivated", null));
-    }
-
-    private Long getCurrentUserId() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        assert auth != null;
-        User user = userService.findByEmail(auth.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return user.getId();
     }
 }

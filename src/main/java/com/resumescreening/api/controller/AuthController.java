@@ -7,6 +7,7 @@ import com.resumescreening.api.model.dto.response.AuthResponse;
 import com.resumescreening.api.model.dto.response.UserResponse;
 import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.security.jwt.JwtUtil;
+import com.resumescreening.api.service.CurrentUserService;
 import com.resumescreening.api.service.UserService;
 import com.resumescreening.api.util.DtoMapper;
 import jakarta.validation.Valid;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
+    private final CurrentUserService currentUserService;
     private final JwtUtil jwtUtil;
     private final AuthenticationManager authenticationManager;
 
@@ -116,11 +118,7 @@ public class AuthController {
     @GetMapping("/me")
     public ResponseEntity<ApiResponse<UserResponse>> getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        assert authentication != null;
-        String email = authentication.getName();
-
-        User user = userService.findByEmail(email)
-                .orElseThrow(() -> new RuntimeException("User not found"));
+        User user = currentUserService.getCurrentUser(authentication);
 
         UserResponse userResponse = DtoMapper.toUserResponse(user);
 

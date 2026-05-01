@@ -4,8 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.ResumeResponse;
 import com.resumescreening.api.model.entity.User;
+import com.resumescreening.api.service.CurrentUserService;
 import com.resumescreening.api.service.ResumeService;
-import com.resumescreening.api.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,7 +23,7 @@ import java.util.List;
 public class ResumeController {
 
     private final ResumeService resumeService;
-    private final UserService userService;
+    private final CurrentUserService currentUserService;
 
     // Upload resume
     @PostMapping("/upload")
@@ -31,7 +31,7 @@ public class ResumeController {
             @RequestParam("file") MultipartFile file,
             Authentication authentication
     ) throws JsonProcessingException {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
 
         ResumeResponse response = resumeService.uploadResume(user.getId(), file);
 
@@ -45,7 +45,7 @@ public class ResumeController {
     public ResponseEntity<ApiResponse<List<ResumeResponse>>> getMyResumes(
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
 
         List<ResumeResponse> responses = resumeService.getResumesByUser(user.getId());
 
@@ -58,7 +58,7 @@ public class ResumeController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
         ResumeResponse response = resumeService.getResumeById(id, user.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
@@ -68,15 +68,10 @@ public class ResumeController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
 
         resumeService.deleteResume(id, user.getId());
 
         return ResponseEntity.ok(ApiResponse.success("Resume deleted successfully", null));
-    }
-
-    private User getAuthenticatedUser(Authentication authentication) {
-        return userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }

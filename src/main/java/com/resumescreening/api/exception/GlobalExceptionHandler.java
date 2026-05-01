@@ -1,6 +1,5 @@
 package com.resumescreening.api.exception;
 
-import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.ErrorResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -42,13 +41,21 @@ public class GlobalExceptionHandler {
 
     // Handle ApplicationAlreadyExistsException
     @ExceptionHandler(ApplicationAlreadyExistsException.class)
-    public ResponseEntity<ApiResponse<Void>> handleApplicationAlreadyExists(
-            ApplicationAlreadyExistsException ex
+    public ResponseEntity<ErrorResponse> handleApplicationAlreadyExists(
+            ApplicationAlreadyExistsException ex,
+            WebRequest request
     ) {
         log.warn("Duplicate application attempt: {}", ex.getMessage());
-        return ResponseEntity
-                .status(HttpStatus.CONFLICT)  // 409 Conflict
-                .body(ApiResponse.error(ex.getMessage()));
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflict")
+                .message(ex.getMessage())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
     }
     // Handle ResourceNotFoundException
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -62,7 +69,7 @@ public class GlobalExceptionHandler {
                 .timestamp(LocalDateTime.now())
                 .status(HttpStatus.NOT_FOUND.value())
                 .error("Not Found")
-                .message(ex.getMessage())
+                .message("An unexpected error occurred. Please try again later.")
                 .path(request.getDescription(false).replace("uri=", ""))
                 .build();
 

@@ -1,19 +1,22 @@
 package com.resumescreening.api.security.jwt;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resumescreening.api.model.dto.response.ErrorResponse;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
 
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
+
+    private final ObjectMapper objectMapper;
 
     @Override
     public void commence(
@@ -22,20 +25,17 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
             AuthenticationException authException
     ) throws IOException {
 
-        // Set response status
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json");
 
-        // Build error response
-        Map<String, Object> errorDetails = new HashMap<>();
-        errorDetails.put("timestamp", LocalDateTime.now().toString());
-        errorDetails.put("status", 401);
-        errorDetails.put("error", "Unauthorized");
-        errorDetails.put("message", "Authentication required. Please provide a valid token.");
-        errorDetails.put("path", request.getRequestURI());
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .timestamp(LocalDateTime.now())
+                .status(401)
+                .error("Unauthorized")
+                .message("Authentication required. Please provide a valid token.")
+                .path(request.getRequestURI())
+                .build();
 
-        // Write JSON response
-        ObjectMapper mapper = new ObjectMapper();
-        response.getWriter().write(mapper.writeValueAsString(errorDetails));
+        response.getWriter().write(objectMapper.writeValueAsString(errorResponse));
     }
 }

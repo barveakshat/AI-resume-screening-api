@@ -5,8 +5,8 @@ import com.resumescreening.api.model.dto.request.UpdateJobRequest;
 import com.resumescreening.api.model.dto.response.ApiResponse;
 import com.resumescreening.api.model.dto.response.JobPostingResponse;
 import com.resumescreening.api.model.entity.User;
+import com.resumescreening.api.service.CurrentUserService;
 import com.resumescreening.api.service.JobPostingService;
-import com.resumescreening.api.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -27,7 +27,7 @@ import java.util.List;
 public class JobPostingController {
 
     private final JobPostingService jobPostingService;
-    private final UserService userService;
+    private final CurrentUserService currentUserService;
 
     // GET /api/v1/jobs - List all active jobs (public)
     @GetMapping
@@ -82,7 +82,7 @@ public class JobPostingController {
     @GetMapping("/my-jobs")
     @PreAuthorize("hasRole('RECRUITER')")
     public ResponseEntity<ApiResponse<List<JobPostingResponse>>> getMyJobs(Authentication authentication) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
         List<JobPostingResponse> responses = jobPostingService.getActiveJobsByUser(user.getId());
 
         return ResponseEntity.ok(ApiResponse.success(responses));
@@ -95,7 +95,7 @@ public class JobPostingController {
             @Valid @RequestBody CreateJobRequest request,
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
         JobPostingResponse job = jobPostingService.createJob(
                 user.getId(), request.getTitle(), request.getDescription(),
                 request.getRequiredSkills(), request.getExperienceLevel(),
@@ -115,7 +115,7 @@ public class JobPostingController {
             @Valid @RequestBody UpdateJobRequest request,
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
         JobPostingResponse job = jobPostingService.updateJob(
                 id, user.getId(), request.getTitle(), request.getDescription(),
                 request.getRequiredSkills(), request.getExperienceLevel(),
@@ -132,7 +132,7 @@ public class JobPostingController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
         jobPostingService.deactivateJob(id, user.getId());
         return ResponseEntity.ok(ApiResponse.success("Job deactivated successfully", null));
     }
@@ -144,13 +144,8 @@ public class JobPostingController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        User user = getAuthenticatedUser(authentication);
+        User user = currentUserService.getCurrentUser(authentication);
         jobPostingService.deleteJob(id, user.getId());
         return ResponseEntity.ok(ApiResponse.success("Job deleted successfully", null));
-    }
-
-    private User getAuthenticatedUser(Authentication authentication) {
-        return userService.findByEmail(authentication.getName())
-                .orElseThrow(() -> new RuntimeException("User not found"));
     }
 }
