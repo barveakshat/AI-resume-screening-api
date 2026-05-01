@@ -131,8 +131,8 @@ public class ApplicationController {
             @PathVariable Long jobId,
             Authentication authentication
     ) {
-        getAuthenticatedUser(authentication);
-        long count = applicationService.countApplicationsForJob(jobId);
+        User recruiter = getAuthenticatedUser(authentication);
+        long count = applicationService.countApplicationsForJob(jobId, recruiter);
         return ResponseEntity.ok(ApiResponse.success(count));
     }
 
@@ -143,9 +143,8 @@ public class ApplicationController {
             @PathVariable Long id,
             Authentication authentication
     ) {
-        getAuthenticatedUser(authentication);
-
-        ApplicationResponse response = applicationService.getApplicationById(id);
+        User user = getAuthenticatedUser(authentication);
+        ApplicationResponse response = applicationService.getApplicationById(id, user);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

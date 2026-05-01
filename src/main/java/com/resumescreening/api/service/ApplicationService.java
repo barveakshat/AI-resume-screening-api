@@ -109,10 +109,16 @@ public class ApplicationService {
                 .toList();
     }
 
-    @Cacheable(value = "applications", key = "#id")
     @Transactional(readOnly = true)
-    public ApplicationResponse getApplicationById(Long id) {
+    public ApplicationResponse getApplicationById(Long id, User user) {
         Application application = getApplicationEntityById(id);
+        boolean isCandidateOwner = application.getCandidate().getId().equals(user.getId());
+        boolean isRecruiterOwner = application.getJobPosting().getUser().getId().equals(user.getId());
+
+        if (!isCandidateOwner && !isRecruiterOwner) {
+            throw new UnauthorizedException("You don't have permission to access this application");
+        }
+
         return DtoMapper.toApplicationResponse(application);
     }
 
@@ -170,7 +176,11 @@ public class ApplicationService {
     }
 
     // Simple count - no caching needed
-    public long countApplicationsForJob(Long jobId) {
+    public long countApplicationsForJob(Long jobId, User recruiter) {
+        JobPostingResponse job = jobPostingService.getJobById(jobId);
+        if (!job.getRecruiterId().equals(recruiter.getId())) {
+            throw new UnauthorizedException("You can only count applications for your own jobs");
+        }
         return applicationRepository.countByJobPostingId(jobId);
     }
 

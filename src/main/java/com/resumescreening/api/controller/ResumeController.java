@@ -59,13 +59,7 @@ public class ResumeController {
             Authentication authentication
     ) {
         User user = getAuthenticatedUser(authentication);
-        ResumeResponse response = resumeService.getResumeById(id);
-        // Validate ownership - with null check
-        if (response.getUserId() != null && !response.getUserId().equals(user.getId())) {
-            return ResponseEntity
-                    .status(HttpStatus.FORBIDDEN)
-                    .body(ApiResponse.error("You don't have permission to access this resume"));
-        }
+        ResumeResponse response = resumeService.getResumeById(id, user.getId());
         return ResponseEntity.ok(ApiResponse.success(response));
     }
     // Delete resume

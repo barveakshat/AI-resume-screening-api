@@ -69,10 +69,11 @@ public class ResumeService {
 
     // Get resume by ID - WITH parsed data for detail view (not cached)
     @Transactional(readOnly = true)
-    public ResumeResponse getResumeById(Long resumeId) {
+    public ResumeResponse getResumeById(Long resumeId, Long userId) {
         Resume resume = resumeRepository.findByIdWithUser(resumeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Resume not found with id: " + resumeId));
 
+        validateOwnership(resume, userId);
         return toResumeResponseWithParsedData(resume);
     }
 
