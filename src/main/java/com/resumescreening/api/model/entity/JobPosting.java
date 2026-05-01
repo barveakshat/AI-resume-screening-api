@@ -16,20 +16,6 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * JobPosting entity - represents jobs created by recruiters.
- * Purpose:
- * - Recruiters create job postings with requirements
- * - These are used to screen candidates' resumes
- * - AI compares resume against job requirements
- * Key fields:
- * - requiredSkills: Array of skills needed (Spring Boot, AWS, etc.)
- * - experienceLevel: Entry/Mid/Senior/Lead
- * - isActive: Whether job is still open for applications
- * Relationships:
- * - ManyToOne with User (many jobs belong to one recruiter)
- * - OneToMany with ScreeningResult (one job can have many screening results)
- */
 @Setter
 @Getter
 @Entity
@@ -38,7 +24,6 @@ import java.util.List;
 @AllArgsConstructor
 public class JobPosting {
 
-    // Getters and Setters
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -49,10 +34,10 @@ public class JobPosting {
     private User user;
 
     @Column(nullable = false, columnDefinition = "VARCHAR(255)")
-    private String title;  // e.g., "Senior Java Developer"
+    private String title;
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    private String description;  // Full job description
+    private String description;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "job_required_skills", joinColumns = @JoinColumn(name = "job_posting_id"))
@@ -69,16 +54,16 @@ public class JobPosting {
     private EmploymentType employmentType;
 
     @Column(columnDefinition = "VARCHAR(255)")
-    private String location;  // e.g., "Bangalore, India"
+    private String location;
 
     @Column(name = "salary_range", length = 100)
-    private String salaryRange;  // e.g., "₹12-18 LPA"
+    private String salaryRange;
 
     @Column(name = "company_name")
     private String companyName;
 
     @Column(name = "is_active")
-    private Boolean isActive = true;  // Can be deactivated when position is filled
+    private Boolean isActive = true;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

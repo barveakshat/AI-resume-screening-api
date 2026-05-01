@@ -1,8 +1,6 @@
 package com.resumescreening.api.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 import com.resumescreening.api.model.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -31,20 +29,20 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String password;  // Will be BCrypt encrypted
+    private String password;
 
     @Column(name = "full_name", nullable = false)
     private String fullName;
 
-    @Enumerated(EnumType.STRING)  // Store as "RECRUITER" or "CANDIDATE" in DB
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 50)
     private Role role;
 
     @Column(name = "company_name")
-    private String companyName;  // Only for recruiters
+    private String companyName;
 
     @Column
-    private String designation;  // Only for recruiters
+    private String designation;
 
     @Column(name = "phone_number")
     private String phoneNumber;
@@ -55,11 +53,11 @@ public class User {
     @Column(name = "is_active")
     private Boolean isActive = true;
 
-    @CreationTimestamp  // Automatically set on creation
+    @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @UpdateTimestamp  // Automatically updated on every save
+    @UpdateTimestamp
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
