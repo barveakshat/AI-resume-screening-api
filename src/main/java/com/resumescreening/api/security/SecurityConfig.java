@@ -2,6 +2,7 @@ package com.resumescreening.api.security;
 
 import com.resumescreening.api.security.jwt.JwtAuthenticationEntryPoint;
 import com.resumescreening.api.security.jwt.JwtAuthenticationFilter;
+import com.resumescreening.api.security.ratelimit.RateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -35,6 +36,7 @@ import java.util.List;
 public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthFilter;
+    private final RateLimitFilter rateLimitFilter;
     private final JwtAuthenticationEntryPoint jwtAuthEntryPoint;
     private final UserDetailsService userDetailsService;
 
@@ -138,6 +140,7 @@ public class SecurityConfig {
 
                 // ✅ Add JWT filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class)
 
                 // ✅ Configure exception handling
                 .exceptionHandling(exception -> exception
