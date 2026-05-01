@@ -1,132 +1,250 @@
-# 🎯 AI-Powered Resume Screening API
+# AI Resume Screening API
 
-An intelligent resume screening system built with Spring Boot that uses Meta's Llama model to automatically evaluate candidate resumes against job requirements.
+Backend API for a resume screening workflow where candidates upload resumes and apply to jobs, while recruiters create job postings and queue AI-based screening.
 
-## 🚀 Features
+This project is built as a Java/Spring Boot portfolio project with production-style concerns: JWT security, role-based authorization, PostgreSQL persistence, Flyway migrations, Redis rate limiting, AWS S3 file storage, async AI processing, and focused automated tests.
 
-- **Role-Based Authentication**: Separate access for Recruiters and Candidates
-- **AI-Powered Resume Parsing**: Extract structured data from PDF/DOCX resumes
-- **Intelligent Screening**: Match candidates to job postings with detailed scoring
-- **Real-Time Caching**: Redis-based caching for optimal performance
-- **Cloud Storage**: AWS S3 integration for secure file storage
-- **RESTful API**: Well-documented API endpoints
-- **Rate Limiting**: Prevent API abuse with intelligent rate limiting
+## What This Demonstrates
 
-## 🛠️ Tech Stack
+- Java 21 and Spring Boot layered backend architecture
+- REST API design with DTOs and centralized error handling
+- Spring Security with JWT authentication and role-based access
+- PostgreSQL schema management with Flyway
+- JPA entity modeling, including normalized required skills
+- Redis-backed fixed-window rate limiting
+- Async processing for long-running AI screening
+- File upload, validation, text extraction, and S3 storage
+- Unit, MVC, and Testcontainers-based integration testing
 
-- **Backend**: Spring Boot 4.0.1, Java 21
-- **Database**: PostgreSQL 15+
-- **Cache**: Redis 7+
-- **Storage**: AWS S3
-- **AI**: meta-llama/llama-3.3-70b-instruct:free
-- **Security**: Spring Security + JWT
-- **Build Tool**: Maven
+## Core Architecture
 
-## 📋 Prerequisites
-
-- Java 21 or higher
-- PostgreSQL 15+
-- Redis 7+
-- AWS Account (Free Tier)
-- OpenAI API Key
-- Maven 3.8+
-
-## ⚙️ Setup Instructions
-
-### 1. Clone the Repository
-```bash
-git clone https://github.com/barveakshat/AI-resume-screening-api.git
-cd resume-screening-api
+```mermaid
+flowchart LR
+    Client[Client] --> Security[JWT Security + Rate Limit Filter]
+    Security --> Controllers[REST Controllers]
+    Controllers --> Services[Application Services]
+    Services --> Repositories[JPA Repositories]
+    Repositories --> Postgres[(PostgreSQL)]
+    Services --> Redis[(Redis)]
+    Services --> S3[(AWS S3)]
+    Services --> AI[AI Provider]
+    Services --> Async[Screening Worker]
+    Async --> AI
+    Async --> Postgres
 ```
 
-### 2. Database Setup
-```bash
-# Create PostgreSQL database
-psql -U postgres
-CREATE DATABASE resume_screening_db;
+## Main Workflows
+
+### Candidate Flow
+
+1. Register/login as `CANDIDATE`.
+2. Upload a PDF/DOCX resume.
+3. Resume is validated, stored in S3, text is extracted, and AI parsing stores structured JSON.
+4. Candidate applies to an active job using one of their resumes.
+5. Candidate can view their own applications and withdraw them.
+
+### Recruiter Flow
+
+1. Register/login as `RECRUITER`.
+2. Create jobs with required skills, experience level, employment type, and company details.
+3. View applications for owned jobs.
+4. Queue AI screening for one application or batch queue all applications for a job.
+5. Poll screening status and view completed results, top candidates, recommendations, and stats.
+
+## Screening Lifecycle
+
+Screening is asynchronous.
+
+- `POST /api/v1/screening/analyze` returns `202 Accepted`.
+- Response includes `applicationId`, `jobPostingId`, `screeningStatus`, optional `screeningResultId`, and a message.
+- Poll with `GET /api/v1/screening/application/{applicationId}/status`.
+- Final states are `COMPLETED` or `FAILED`.
+
+Screening statuses:
+
+- `NOT_STARTED`
+- `QUEUED`
+- `PROCESSING`
+- `COMPLETED`
+- `FAILED`
+
+## API Examples
+
+### Register
+
+```http
+POST /api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "recruiter@example.com",
+  "password": "Password@123",
+  "fullName": "Recruiter One",
+  "role": "RECRUITER",
+  "companyName": "Acme"
+}
 ```
 
-Run the SQL scripts from `src/main/resources/db/schema.sql` to create tables.
+### Create Job
 
-### 3. Environment Configuration
+```http
+POST /api/v1/jobs
+Authorization: Bearer <token>
+Content-Type: application/json
 
-Copy the example environment file:
-```bash
-cp .env.example .env
+{
+  "title": "Java Backend Developer",
+  "description": "Build REST APIs with Spring Boot",
+  "requiredSkills": ["Java", "Spring Boot", "PostgreSQL"],
+  "experienceLevel": "ENTRY",
+  "employmentType": "FULL_TIME",
+  "location": "Remote",
+  "companyName": "Acme"
+}
 ```
 
-Edit `.env` and add your credentials:
+### Queue Screening
+
+```http
+POST /api/v1/screening/analyze
+Authorization: Bearer <token>
+Content-Type: application/json
+
+{
+  "applicationId": 42
+}
+```
+
+Returns:
+
+```json
+{
+  "success": true,
+  "message": "Screening queued",
+  "data": {
+    "applicationId": 42,
+    "jobPostingId": 10,
+    "screeningStatus": "QUEUED",
+    "screeningResultId": null
+  }
+}
+```
+
+## Rate Limiting
+
+Rate limiting is enforced with Redis atomic counters.
+
+- Login: 5 requests/minute/IP
+- Register: 3 requests/minute/IP
+- Public job endpoints: 60 requests/minute/IP
+- Authenticated API: 120 requests/minute/user
+- Resume upload: 10 requests/hour/user
+- Screening: 20 requests/hour/recruiter
+- Batch screening: 5 requests/hour/recruiter
+
+Limit responses return `429 Too Many Requests` with:
+
+- `Retry-After`
+- `X-RateLimit-Limit`
+- `X-RateLimit-Remaining`
+
+## Database Migrations
+
+Flyway migrations live in:
+
+```text
+src/main/resources/db/migration
+```
+
+Current migration themes:
+
+- Baseline schema
+- Normalized `job_required_skills`
+- Async screening status columns
+- Removal of legacy API usage table
+
+Production profile uses:
+
+```yaml
+spring:
+  jpa:
+    hibernate:
+      ddl-auto: validate
+  flyway:
+    enabled: true
+```
+
+## Local Setup
+
+Required:
+
+- Java 21
+- Maven
+- PostgreSQL
+- Redis
+- AWS S3 credentials
+- AI provider API key
+
+Environment variables:
+
 ```env
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-OPENAI_API_KEY=your_openai_key
-# ... etc
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/resume_screening_db
+SPRING_DATASOURCE_USERNAME=postgres
+SPRING_DATASOURCE_PASSWORD=postgres
+SPRING_DATA_REDIS_HOST=localhost
+SPRING_DATA_REDIS_PORT=6379
+AWS_S3_BUCKET_NAME=your-bucket
+AWS_REGION=ap-south-1
+AWS_ACCESS_KEY_ID=your-access-key
+AWS_SECRET_ACCESS_KEY=your-secret-key
+OPENAI_API_KEY=your-ai-key
+JWT_SECRET=12345678901234567890123456789012
+CORS_ALLOWED_ORIGINS=http://localhost:3000
 ```
 
-Copy and configure application properties:
-```bash
-cp src/main/resources/application-dev.yml.example src/main/resources/application-dev.yml
-```
+Run:
 
-### 4. Install Dependencies
-```bash
-mvn clean install
-```
-
-### 5. Run the Application
 ```bash
 mvn spring-boot:run
 ```
 
-The API will be available at: `http://localhost:8080`
+Swagger:
 
-## 📚 API Documentation
-
-Once running, access Swagger UI at:
-```
-http://localhost:8080/swagger-ui.html
+```text
+http://localhost:8080/swagger-ui/index.html
 ```
 
-## 🔐 Security Notes
+## Testing
 
-- Never commit `.env` or `application-dev.yml` files
-- Use environment variables for all sensitive data
-- Rotate AWS keys regularly
-- Use strong JWT secrets (256-bit minimum)
+Run all tests:
 
-## 🧪 Testing
 ```bash
-# Run all tests
 mvn test
-
-# Run with coverage
-mvn test jacoco:report
 ```
 
-## 📦 Project Structure
+The test suite includes:
+
+- Service unit tests with Mockito
+- Standalone MVC/controller tests
+- Redis rate limiter tests
+- Testcontainers integration tests for PostgreSQL/Flyway/JPA and Redis
+
+When Docker is not available, Testcontainers integration tests are skipped automatically.
+
+## Project Structure
+
+```text
+src/main/java/com/resumescreening/api
+├── config
+├── controller
+├── exception
+├── model
+├── repository
+├── security
+├── service
+└── util
 ```
-src/main/java/com/resumescreening/api/
-├── config/          # Configuration classes
-├── controller/      # REST Controllers
-├── service/         # Business Logic
-├── repository/      # JPA Repositories
-├── model/           # Entities & DTOs
-├── security/        # Security components
-├── exception/       # Custom Exceptions
-└── util/            # Utility classes
-```
 
-## 🤝 Contributing
+## Resume Bullet
 
-This is a personal learning project. Feedback and suggestions are welcome!
-
-## 👤 Author
-
-**Akshat Barve**
-- Email: barveakshat091@gmail.com
-- [LinkedIn](https://www.linkedin.com/in/akshatbarve/)
-- [GitHub](https://github.com/barveakshat)
-
----
-
-⭐ If you find this project helpful, please consider giving it a star!
+Built a Spring Boot resume screening API with JWT authentication, recruiter/candidate role-based access, PostgreSQL/Flyway migrations, Redis rate limiting, AWS S3 resume storage, async AI screening, and automated unit/MVC/Testcontainers tests.
