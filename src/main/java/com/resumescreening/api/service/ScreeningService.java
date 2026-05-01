@@ -96,6 +96,8 @@ public class ScreeningService {
             log.info("Screening completed: Score={}, Recommendation={}, Time={}ms",
                     result.getMatchScore(), result.getRecommendation(), processingTime);
             return DtoMapper.toScreeningResultResponse(result);
+        } catch (IllegalArgumentException e) {
+            throw e;
         } catch (Exception e) {
             log.error("Error screening application: {}", e.getMessage(), e);
             throw new RuntimeException("Failed to screen application", e);
