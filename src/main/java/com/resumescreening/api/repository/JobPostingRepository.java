@@ -1,6 +1,5 @@
 package com.resumescreening.api.repository;
 
-import com.resumescreening.api.model.dto.response.JobPostingResponse;
 import com.resumescreening.api.model.entity.JobPosting;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -25,7 +24,12 @@ public interface JobPostingRepository extends JpaRepository<JobPosting, Long> {
     SELECT * FROM job_postings jp
     WHERE jp.is_active = true
     AND (:keyword IS NULL OR LOWER(jp.title) LIKE LOWER(CONCAT('%', :keyword, '%'))
-         OR LOWER(jp.description) LIKE LOWER(CONCAT('%', :keyword, '%')))
+         OR LOWER(jp.description) LIKE LOWER(CONCAT('%', :keyword, '%'))
+         OR EXISTS (
+             SELECT 1 FROM job_required_skills jrs
+             WHERE jrs.job_posting_id = jp.id
+             AND LOWER(jrs.skill) LIKE LOWER(CONCAT('%', :keyword, '%'))
+         ))
     AND (:location IS NULL OR LOWER(jp.location) LIKE LOWER(CONCAT('%', :location, '%')))
     AND (:experienceLevel IS NULL OR CAST(jp.experience_level AS VARCHAR) = :experienceLevel)
     AND (:employmentType IS NULL OR CAST(jp.employment_type AS VARCHAR) = :employmentType)

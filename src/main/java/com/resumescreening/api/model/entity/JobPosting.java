@@ -2,7 +2,6 @@ package com.resumescreening.api.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.resumescreening.api.converter.StringListConverter;
 import com.resumescreening.api.model.enums.EmploymentType;
 import com.resumescreening.api.model.enums.ExperienceLevel;
 import jakarta.persistence.*;
@@ -55,8 +54,10 @@ public class JobPosting {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String description;  // Full job description
 
-    @Convert(converter = StringListConverter.class)
-    @Column(name = "required_skills", columnDefinition = "TEXT")
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "job_required_skills", joinColumns = @JoinColumn(name = "job_posting_id"))
+    @OrderColumn(name = "skill_order")
+    @Column(name = "skill", nullable = false)
     private List<String> requiredSkills;
 
     @Enumerated(EnumType.STRING)
