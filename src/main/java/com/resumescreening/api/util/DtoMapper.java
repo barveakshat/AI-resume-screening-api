@@ -98,7 +98,11 @@ public class DtoMapper {
                 .status(application.getStatus())
                 .coverLetter(application.getCoverLetter())
                 .appliedAt(application.getAppliedAt())
-                .screenedAt(application.getScreenedAt());
+                .screenedAt(application.getScreenedAt())
+                .screeningStatus(application.getScreeningStatus())
+                .screeningError(application.getScreeningError())
+                .screeningRequestedAt(application.getScreeningRequestedAt())
+                .screeningCompletedAt(application.getScreeningCompletedAt());
 
         // Safely access jobPosting
         if (Hibernate.isInitialized(application.getJobPosting()) && application.getJobPosting() != null) {

@@ -1,6 +1,7 @@
 package com.resumescreening.api.model.dto.response;
 
 import com.resumescreening.api.model.enums.ApplicationStatus;
+import com.resumescreening.api.model.enums.ScreeningStatus;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -25,5 +26,9 @@ public class ApplicationResponse {
     private String coverLetter;
     private LocalDateTime appliedAt;
     private LocalDateTime screenedAt;
+    private ScreeningStatus screeningStatus;
+    private String screeningError;
+    private LocalDateTime screeningRequestedAt;
+    private LocalDateTime screeningCompletedAt;
     private ScreeningResultResponse screeningResult;
 }

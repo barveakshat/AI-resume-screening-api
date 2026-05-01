@@ -40,7 +40,7 @@ class ApplicationServiceTest {
     @Test
     void getApplicationByIdAllowsCandidateOwner() {
         Application application = application(candidate(), recruiter());
-        when(applicationRepository.findById(50L)).thenReturn(Optional.of(application));
+        when(applicationRepository.findByIdWithDetails(50L)).thenReturn(Optional.of(application));
 
         ApplicationResponse response = applicationService.getApplicationById(50L, candidate());
 
@@ -50,7 +50,7 @@ class ApplicationServiceTest {
     @Test
     void getApplicationByIdAllowsRecruiterOwner() {
         Application application = application(candidate(), recruiter());
-        when(applicationRepository.findById(50L)).thenReturn(Optional.of(application));
+        when(applicationRepository.findByIdWithDetails(50L)).thenReturn(Optional.of(application));
 
         ApplicationResponse response = applicationService.getApplicationById(50L, recruiter());
 
@@ -61,7 +61,7 @@ class ApplicationServiceTest {
     void getApplicationByIdRejectsUnrelatedUser() {
         Application application = application(candidate(), recruiter());
         User other = user(99L, Role.CANDIDATE);
-        when(applicationRepository.findById(50L)).thenReturn(Optional.of(application));
+        when(applicationRepository.findByIdWithDetails(50L)).thenReturn(Optional.of(application));
 
         assertThatThrownBy(() -> applicationService.getApplicationById(50L, other))
                 .isInstanceOf(UnauthorizedException.class);

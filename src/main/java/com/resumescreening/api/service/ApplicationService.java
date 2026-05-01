@@ -125,7 +125,7 @@ public class ApplicationService {
     // Internal method to get entity with relationships initialized
     @Transactional(readOnly = true)
     public Application getApplicationEntityById(Long id) {
-        Application application = applicationRepository.findById(id)
+        Application application = applicationRepository.findByIdWithDetails(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Application not found with id: " + id));
 
         // Initialize relationships to avoid lazy loading issues

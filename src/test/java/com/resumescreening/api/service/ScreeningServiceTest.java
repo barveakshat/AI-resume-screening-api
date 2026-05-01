@@ -1,91 +1,93 @@
 package com.resumescreening.api.service;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.resumescreening.api.exception.UnauthorizedException;
+import com.resumescreening.api.model.dto.response.ApplicationResponse;
+import com.resumescreening.api.model.dto.response.ScreeningStatusResponse;
 import com.resumescreening.api.model.entity.Application;
 import com.resumescreening.api.model.entity.JobPosting;
-import com.resumescreening.api.model.entity.Resume;
-import com.resumescreening.api.model.entity.ScreeningResult;
 import com.resumescreening.api.model.entity.User;
+import com.resumescreening.api.model.enums.ScreeningStatus;
+import com.resumescreening.api.repository.ApplicationRepository;
 import com.resumescreening.api.repository.ScreeningResultRepository;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ScreeningServiceTest {
 
-    private final OpenAIService openAIService = mock(OpenAIService.class);
     private final ScreeningResultRepository screeningRepository = mock(ScreeningResultRepository.class);
+    private final ApplicationRepository applicationRepository = mock(ApplicationRepository.class);
+    private final ApplicationService applicationService = mock(ApplicationService.class);
+    private final ScreeningWorkerService screeningWorkerService = mock(ScreeningWorkerService.class);
     private final ScreeningService screeningService = new ScreeningService(
-            openAIService,
             screeningRepository,
-            mock(ApplicationService.class),
-            new ObjectMapper()
+            applicationRepository,
+            applicationService,
+            screeningWorkerService
     );
 
     @Test
-    void screenApplicationUsesParsedResumeJson() {
-        Application application = applicationWithParsedResume("""
-                {"fullName":"Ada Lovelace","skills":["Java","Spring"],"totalExperienceYears":3,"education":[]}
-                """);
-        when(screeningRepository.existsByApplicationId(50L)).thenReturn(false);
-        when(openAIService.complete(any())).thenReturn("""
-                {"overallScore":82,"skillMatchScore":90,"experienceMatchScore":80,"educationMatchScore":70,
-                "matchedSkills":["Java"],"missingSkills":[],"strengths":"Strong Java","weaknesses":"None","summary":"Strong fit","keyHighlights":[]}
-                """);
-        when(openAIService.cleanJsonResponse(any())).thenAnswer(invocation -> invocation.getArgument(0));
-        when(screeningRepository.save(any(ScreeningResult.class))).thenAnswer(invocation -> {
-            ScreeningResult result = invocation.getArgument(0);
-            result.setId(100L);
-            return result;
-        });
+    void queueScreeningMarksApplicationQueuedAndStartsWorker() {
+        Application application = application(50L, recruiter());
+        when(screeningRepository.findByApplicationId(50L)).thenReturn(Optional.empty());
+        when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThat(screeningService.screenApplication(application).getCandidateName()).isEqualTo("Candidate");
-        assertThat(application.getScreenedAt()).isNotNull();
+        ScreeningStatusResponse response = screeningService.queueScreening(application);
+
+        assertThat(response.getScreeningStatus()).isEqualTo(ScreeningStatus.QUEUED);
+        assertThat(application.getScreeningRequestedAt()).isNotNull();
+        verify(screeningWorkerService).screenApplicationAsync(50L);
     }
 
     @Test
-    void screenApplicationRejectsMissingParsedResumeJson() {
-        Application application = applicationWithParsedResume(null);
+    void queueBatchScreeningReturnsQueuedCounts() {
+        User recruiter = recruiter();
+        Application application = application(50L, recruiter);
+        when(applicationService.getApplicationsForJob(10L, recruiter))
+                .thenReturn(List.of(ApplicationResponse.builder().id(50L).build()));
+        when(applicationService.getApplicationEntityById(50L)).thenReturn(application);
+        when(screeningRepository.findByApplicationId(50L)).thenReturn(Optional.empty());
+        when(applicationRepository.save(any(Application.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThatThrownBy(() -> screeningService.screenApplication(application))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("parsed data");
+        assertThat(screeningService.queueBatchScreening(10L, recruiter).getQueuedCount()).isEqualTo(1);
     }
 
-    private Application applicationWithParsedResume(String parsedData) {
-        User recruiter = new User();
-        recruiter.setId(2L);
-        recruiter.setFullName("Recruiter");
-        recruiter.setEmail("recruiter@example.com");
+    @Test
+    void getScreeningStatusRejectsUnownedApplication() {
+        Application application = application(50L, recruiter());
+        when(applicationService.getApplicationEntityById(50L)).thenReturn(application);
 
-        User candidate = new User();
-        candidate.setId(1L);
-        candidate.setFullName("Candidate");
-        candidate.setEmail("candidate@example.com");
+        assertThatThrownBy(() -> screeningService.getScreeningStatus(50L, user(99L)))
+                .isInstanceOf(UnauthorizedException.class);
+    }
 
+    private Application application(Long id, User recruiter) {
         JobPosting job = new JobPosting();
         job.setId(10L);
-        job.setTitle("Java Developer");
-        job.setDescription("Build APIs");
-        job.setRequiredSkills(List.of("Java"));
         job.setUser(recruiter);
 
-        Resume resume = new Resume();
-        resume.setId(20L);
-        resume.setUser(candidate);
-        resume.setParsedData(parsedData);
-
         Application application = new Application();
-        application.setId(50L);
-        application.setCandidate(candidate);
+        application.setId(id);
         application.setJobPosting(job);
-        application.setResume(resume);
+        application.setScreeningStatus(ScreeningStatus.NOT_STARTED);
         return application;
+    }
+
+    private User recruiter() {
+        return user(2L);
+    }
+
+    private User user(Long id) {
+        User user = new User();
+        user.setId(id);
+        return user;
     }
 }

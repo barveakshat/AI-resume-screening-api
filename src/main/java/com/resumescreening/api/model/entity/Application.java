@@ -2,6 +2,7 @@ package com.resumescreening.api.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.resumescreening.api.model.enums.ApplicationStatus;
+import com.resumescreening.api.model.enums.ScreeningStatus;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
@@ -55,10 +56,28 @@ public class Application {
 
     @Column
     private LocalDateTime screenedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "screening_status", nullable = false)
+    @Builder.Default
+    private ScreeningStatus screeningStatus = ScreeningStatus.NOT_STARTED;
+
+    @Column(name = "screening_error", columnDefinition = "TEXT")
+    private String screeningError;
+
+    @Column(name = "screening_requested_at")
+    private LocalDateTime screeningRequestedAt;
+
+    @Column(name = "screening_completed_at")
+    private LocalDateTime screeningCompletedAt;
+
     @PrePersist
     protected void onCreate() {
         appliedAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if (screeningStatus == null) {
+            screeningStatus = ScreeningStatus.NOT_STARTED;
+        }
     }
 
     @PreUpdate

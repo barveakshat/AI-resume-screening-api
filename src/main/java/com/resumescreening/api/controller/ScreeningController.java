@@ -3,8 +3,10 @@ package com.resumescreening.api.controller;
 import com.resumescreening.api.model.dto.request.BatchScreeningRequest;
 import com.resumescreening.api.model.dto.request.ScreeningRequest;
 import com.resumescreening.api.model.dto.response.ApiResponse;
+import com.resumescreening.api.model.dto.response.BatchScreeningResponse;
 import com.resumescreening.api.model.dto.response.JobPostingResponse;
 import com.resumescreening.api.model.dto.response.ScreeningResultResponse;
+import com.resumescreening.api.model.dto.response.ScreeningStatusResponse;
 import com.resumescreening.api.model.entity.Application;
 import com.resumescreening.api.model.entity.User;
 import com.resumescreening.api.model.enums.Recommendation;
@@ -21,7 +23,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/v1/screening")
@@ -36,7 +37,7 @@ public class ScreeningController {
 
     // ✅ Screen single application
     @PostMapping("/analyze")
-    public ResponseEntity<ApiResponse<ScreeningResultResponse>> screenApplication(
+    public ResponseEntity<ApiResponse<ScreeningStatusResponse>> screenApplication(
             @Valid @RequestBody ScreeningRequest request,
             Authentication authentication
     ) {
@@ -51,28 +52,16 @@ public class ScreeningController {
                     .body(ApiResponse.error("You don't have permission to screen this application"));
         }
 
-        // Check if already screened, if yes return existing result
-        Optional<ScreeningResultResponse> existingResult =
-                screeningService.getScreeningResultByApplicationId(application.getId());
-
-        if (existingResult.isPresent()) {
-            return ResponseEntity.ok(
-                    ApiResponse.success("Application already screened - returning existing result",
-                            existingResult.get())
-            );
-        }
-
-        // Screen application
-        ScreeningResultResponse result = screeningService.screenApplication(application);
+        ScreeningStatusResponse result = screeningService.queueScreening(application);
 
         return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Application screened successfully", result));
+                .status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success(result.getMessage(), result));
     }
 
     // ✅ Batch screen all applications for a job
     @PostMapping("/batch")
-    public ResponseEntity<ApiResponse<List<ScreeningResultResponse>>> batchScreenApplications(
+    public ResponseEntity<ApiResponse<BatchScreeningResponse>> batchScreenApplications(
             @Valid @RequestBody BatchScreeningRequest request,
             Authentication authentication
     ) {
@@ -86,13 +75,21 @@ public class ScreeningController {
                     .body(ApiResponse.error("You don't have permission to screen for this job"));
         }
 
-        // Batch screen all applications for this job
-        List<ScreeningResultResponse> results =
-                screeningService.batchScreenApplications(request.getJobPostingId(), user);
+        BatchScreeningResponse result = screeningService.queueBatchScreening(request.getJobPostingId(), user);
 
         return ResponseEntity
-                .status(HttpStatus.CREATED)
-                .body(ApiResponse.success("Batch screening completed", results));
+                .status(HttpStatus.ACCEPTED)
+                .body(ApiResponse.success("Batch screening queued", result));
+    }
+
+    @GetMapping("/application/{applicationId}/status")
+    public ResponseEntity<ApiResponse<ScreeningStatusResponse>> getApplicationScreeningStatus(
+            @PathVariable Long applicationId,
+            Authentication authentication
+    ) {
+        User user = getAuthenticatedUser(authentication);
+        ScreeningStatusResponse status = screeningService.getScreeningStatus(applicationId, user);
+        return ResponseEntity.ok(ApiResponse.success(status));
     }
 
     // Get screening result by ID

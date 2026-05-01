@@ -9,9 +9,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ApplicationRepository extends JpaRepository<Application, Long> {
+
+    @Query("SELECT a FROM Application a " +
+            "LEFT JOIN FETCH a.jobPosting jp " +
+            "LEFT JOIN FETCH jp.user " +
+            "LEFT JOIN FETCH a.candidate " +
+            "LEFT JOIN FETCH a.resume " +
+            "WHERE a.id = :id")
+    Optional<Application> findByIdWithDetails(@Param("id") Long id);
 
     @Query("SELECT a FROM Application a " +
             "LEFT JOIN FETCH a.jobPosting " +
