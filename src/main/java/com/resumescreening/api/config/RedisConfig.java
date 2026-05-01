@@ -20,7 +20,6 @@ public class RedisConfig {
 
     private GenericJacksonJsonRedisSerializer createJsonSerializer() {
         return GenericJacksonJsonRedisSerializer.builder()
-                .enableUnsafeDefaultTyping()
                 .enableSpringCacheNullValueSupport()
                 .build();
     }

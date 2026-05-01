@@ -10,11 +10,10 @@ import java.util.List;
 public class FileValidationService {
 
     private static final long MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("pdf", "docx", "doc");
+    private static final List<String> ALLOWED_EXTENSIONS = Arrays.asList("pdf", "docx");
     private static final List<String> ALLOWED_CONTENT_TYPES = Arrays.asList(
             "application/pdf",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "application/msword"
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
     );
 
     // Validate file

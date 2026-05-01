@@ -235,19 +235,21 @@ public class ScreeningService {
 
     private String buildScreeningPrompt(JobPosting job, Resume resume) {
         ParsedResumeData parsedData = extractParsedData(resume);
+        List<String> jobSkills = job.getRequiredSkills() != null ? job.getRequiredSkills() : List.of();
+        List<String> candidateSkills = parsedData.getSkills() != null ? parsedData.getSkills() : List.of();
 
         return String.format("""
             You are an expert technical recruiter. Analyze how well this candidate matches the job requirements.
             
             JOB POSTING:
-            Title: %s
-            Required Skills: %s
+                Title: %s
+                Required Skills: %s
             Experience Level: %s
             Description: %s
             
             CANDIDATE PROFILE:
-            Name: %s
-            Skills: %s
+                Name: %s
+                Skills: %s
             Total Experience: %d years
             Education: %s
             
@@ -274,11 +276,11 @@ public class ScreeningService {
             Be objective and specific. Consider projects as valid experience for freshers.
             """,
                 job.getTitle(),
-                String.join(", ", job.getRequiredSkills()),
+                String.join(", ", jobSkills),
                 job.getExperienceLevel(),
                 job.getDescription(),
                 parsedData.getFullName(),
-                String.join(", ", parsedData.getSkills()),
+                String.join(", ", candidateSkills),
                 parsedData.getTotalExperienceYears() != null ? parsedData.getTotalExperienceYears() : 0,
                 formatEducation(parsedData)
         );
@@ -286,13 +288,13 @@ public class ScreeningService {
 
     private ParsedResumeData extractParsedData(Resume resume) {
         try {
-            if (resume.getParsedData() == null) {
-                return new ParsedResumeData();
+            if (resume.getParsedData() == null || resume.getParsedData().trim().isEmpty()) {
+                throw new IllegalArgumentException("Resume has not been parsed yet");
             }
-            return objectMapper.convertValue(resume.getParsedData(), ParsedResumeData.class);
+            return objectMapper.readValue(resume.getParsedData(), ParsedResumeData.class);
         } catch (Exception e) {
-            log.warn("Could not extract parsed data from resume", e);
-            return new ParsedResumeData();
+            log.warn("Could not extract parsed data for resume {}", resume.getId());
+            throw new IllegalArgumentException("Resume parsed data is missing or invalid", e);
         }
     }
 

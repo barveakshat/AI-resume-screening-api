@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -18,6 +19,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -56,8 +58,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                 // Validate token
                 if (jwtUtil.validateToken(jwt, userDetails)) {
-                    System.out.println("✅ JWT valid for user: " + userEmail);
-                    System.out.println("✅ Authorities: " + userDetails.getAuthorities());
+                    log.debug("JWT valid for user: {}", userEmail);
                     // Create authentication object
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             userDetails,
@@ -74,13 +75,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             }
         }
         catch (io.jsonwebtoken.ExpiredJwtException e) {
-            System.err.println("❌ JWT expired: " + e.getMessage());
+            log.debug("JWT expired: {}", e.getMessage());
         } catch (io.jsonwebtoken.MalformedJwtException e) {
-            System.err.println("❌ JWT malformed: " + e.getMessage());
+            log.debug("JWT malformed: {}", e.getMessage());
         } catch (io.jsonwebtoken.SignatureException e) {
-            System.err.println("❌ JWT signature invalid: " + e.getMessage());
+            log.debug("JWT signature invalid: {}", e.getMessage());
         } catch (Exception e) {
-            System.err.println("❌ JWT processing error: " + e.getClass().getName() + " - " + e.getMessage());
+            log.debug("JWT processing error: {}", e.getMessage());
         }
 //        catch (Exception e) {
 //            // Token invalid - continue without authentication
