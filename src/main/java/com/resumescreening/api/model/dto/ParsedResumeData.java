@@ -17,9 +17,12 @@ public class ParsedResumeData {
     private String fullName;
     private String email;
     private String phone;
+    @Builder.Default
     private List<String> skills = new ArrayList<>();
     private Integer totalExperienceYears;
+    @Builder.Default
     private List<Experience> experience = new ArrayList<>();
+    @Builder.Default
     private List<Education> education = new ArrayList<>();
     private String summary;
 

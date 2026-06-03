@@ -1,16 +1,12 @@
 package com.resumescreening.api.model.entity;
 
-import io.hypersistence.utils.hibernate.type.json.JsonBinaryType;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
-import java.lang.reflect.Type;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
 
 @Entity
 @Table(name = "resumes")
@@ -55,5 +51,6 @@ public class Resume {
     private LocalDateTime uploadedAt;
 
     @Column
+    @Builder.Default
     private Boolean isPrimary = false; // Mark one resume as primary
 }

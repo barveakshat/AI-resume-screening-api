@@ -49,11 +49,13 @@ public class ScreeningResult {
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "matched_skills", joinColumns = @JoinColumn(name = "screening_result_id"))
     @Column(name = "skill")
+    @Builder.Default
     private List<String> matchedSkills = new ArrayList<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "missing_skills", joinColumns = @JoinColumn(name = "screening_result_id"))
     @Column(name = "skill")
+    @Builder.Default
     private List<String> missingSkills = new ArrayList<>();
 
     @Column(columnDefinition = "TEXT")
