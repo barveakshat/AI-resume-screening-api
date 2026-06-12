@@ -180,19 +180,37 @@ Required:
 
 - Java 21
 - Maven
-- PostgreSQL
-- Redis
+- Docker Desktop for local PostgreSQL and Redis
 - AWS S3 credentials
 - AI provider API key
 
-Environment variables:
+Start local dependencies:
+
+```bash
+docker compose up -d
+```
+
+Copy the example environment file and fill in real AWS/AI/JWT values:
+
+```bash
+cp .env.example .env
+```
+
+The local Docker Compose defaults use:
 
 ```env
+SPRING_PROFILES_ACTIVE=dev
 SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/resume_screening_db
 SPRING_DATASOURCE_USERNAME=postgres
 SPRING_DATASOURCE_PASSWORD=postgres
 SPRING_DATA_REDIS_HOST=localhost
 SPRING_DATA_REDIS_PORT=6379
+SPRING_DATA_REDIS_PASSWORD=
+```
+
+Required secret values:
+
+```env
 AWS_S3_BUCKET_NAME=your-bucket
 AWS_REGION=ap-south-1
 AWS_ACCESS_KEY_ID=your-access-key
@@ -205,7 +223,7 @@ CORS_ALLOWED_ORIGINS=http://localhost:3000
 Run:
 
 ```bash
-mvn spring-boot:run
+mvn spring-boot:run -Dspring-boot.run.profiles=dev
 ```
 
 Swagger:
@@ -214,12 +232,55 @@ Swagger:
 http://localhost:8080/swagger-ui/index.html
 ```
 
+Health check:
+
+```text
+http://localhost:8080/actuator/health
+```
+
+## Demo Flow
+
+Use `docs/demo-flow.http` with IntelliJ HTTP Client, VS Code REST Client, or import the requests into Postman.
+
+The demo covers:
+
+- Register recruiter and candidate users
+- Login and copy JWT tokens
+- Create a recruiter-owned job
+- Upload a candidate resume
+- Apply to the job
+- Queue AI screening
+- Poll screening status
+- View job applications
+
+For resume upload, place a sample PDF next to `docs/demo-flow.http` or update the file path in the request.
+
+## Backend Deployment
+
+Deployment notes are in `DEPLOYMENT.md`.
+
+Recommended lightweight portfolio target: Render with Docker-backed Spring Boot, Render Postgres, and Render Key Value.
+
+This repository includes:
+
+- `Dockerfile` for the backend image
+- `render.yaml` for Render Blueprint setup
+- `DEPLOYMENT.md` for environment variables and manual deployment steps
+
+Production rules:
+
+- Use `SPRING_PROFILES_ACTIVE=prod`.
+- Keep all credentials as platform environment variables.
+- Let Flyway run migrations.
+- Keep Hibernate on schema validation.
+- Enable Swagger only temporarily for controlled demos.
+
 ## Testing
 
 Run all tests:
 
 ```bash
-mvn test
+mvn clean test
 ```
 
 The test suite includes:
@@ -230,6 +291,10 @@ The test suite includes:
 - Testcontainers integration tests for PostgreSQL/Flyway/JPA and Redis
 
 When Docker is not available, Testcontainers integration tests are skipped automatically.
+
+## CI
+
+GitHub Actions runs `mvn -B clean test` on pushes and pull requests to `main`.
 
 ## Project Structure
 

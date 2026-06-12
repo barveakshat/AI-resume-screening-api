@@ -1,0 +1,104 @@
+@baseUrl = http://localhost:8080
+@recruiterToken = paste-recruiter-token-here
+@candidateToken = paste-candidate-token-here
+@jobId = 1
+@resumeId = 1
+@applicationId = 1
+
+### 1. Register recruiter
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "recruiter.demo@example.com",
+  "password": "Password@123",
+  "fullName": "Recruiter Demo",
+  "role": "RECRUITER",
+  "companyName": "DemoSoft",
+  "designation": "Technical Recruiter"
+}
+
+### 2. Register candidate
+POST {{baseUrl}}/api/v1/auth/register
+Content-Type: application/json
+
+{
+  "email": "candidate.demo@example.com",
+  "password": "Password@123",
+  "fullName": "Candidate Demo",
+  "role": "CANDIDATE",
+  "phoneNumber": "9999999999"
+}
+
+### 3. Login recruiter
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "recruiter.demo@example.com",
+  "password": "Password@123"
+}
+
+### 4. Login candidate
+POST {{baseUrl}}/api/v1/auth/login
+Content-Type: application/json
+
+{
+  "email": "candidate.demo@example.com",
+  "password": "Password@123"
+}
+
+### 5. Recruiter creates a job
+POST {{baseUrl}}/api/v1/jobs
+Authorization: Bearer {{recruiterToken}}
+Content-Type: application/json
+
+{
+  "title": "Junior Java Backend Developer",
+  "description": "Build and maintain REST APIs with Spring Boot, PostgreSQL, and Redis.",
+  "requiredSkills": ["Java", "Spring Boot", "PostgreSQL", "Redis"],
+  "experienceLevel": "ENTRY",
+  "employmentType": "FULL_TIME",
+  "location": "Remote",
+  "salaryRange": "6-10 LPA",
+  "companyName": "DemoSoft"
+}
+
+### 6. Candidate uploads a resume
+POST {{baseUrl}}/api/v1/resumes/upload
+Authorization: Bearer {{candidateToken}}
+Content-Type: multipart/form-data; boundary=resumeBoundary
+
+--resumeBoundary
+Content-Disposition: form-data; name="file"; filename="candidate-resume.pdf"
+Content-Type: application/pdf
+
+< ./candidate-resume.pdf
+--resumeBoundary--
+
+### 7. Candidate applies to the job
+POST {{baseUrl}}/api/v1/applications/job/{{jobId}}/apply
+Authorization: Bearer {{candidateToken}}
+Content-Type: application/json
+
+{
+  "resumeId": {{resumeId}},
+  "coverLetter": "I am interested in this Java backend role and have built Spring Boot APIs."
+}
+
+### 8. Recruiter queues AI screening
+POST {{baseUrl}}/api/v1/screening/analyze
+Authorization: Bearer {{recruiterToken}}
+Content-Type: application/json
+
+{
+  "applicationId": {{applicationId}}
+}
+
+### 9. Recruiter polls screening status
+GET {{baseUrl}}/api/v1/screening/application/{{applicationId}}/status
+Authorization: Bearer {{recruiterToken}}
+
+### 10. Recruiter views applications for the job
+GET {{baseUrl}}/api/v1/applications/job/{{jobId}}
+Authorization: Bearer {{recruiterToken}}

@@ -1,8 +1,8 @@
 spring:
   datasource:
-    url: ${SPRING_DATASOURCE_URL}
-    username: ${SPRING_DATASOURCE_USERNAME}
-    password: ${SPRING_DATASOURCE_PASSWORD}
+    url: ${SPRING_DATASOURCE_URL:}
+    username: ${SPRING_DATASOURCE_USERNAME:}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
     driver-class-name: org.postgresql.Driver
     hikari:
       maximum-pool-size: 10
@@ -27,11 +27,11 @@ spring:
 
   data:
     redis:
-      host: ${SPRING_DATA_REDIS_HOST}
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
       port: ${SPRING_DATA_REDIS_PORT:6379}
-      password: ${SPRING_DATA_REDIS_PASSWORD}
+      password: ${SPRING_DATA_REDIS_PASSWORD:}
       ssl:
-        enabled: true
+        enabled: ${SPRING_DATA_REDIS_SSL_ENABLED:false}
       timeout: 60000
       lettuce:
         pool:

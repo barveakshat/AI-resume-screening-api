@@ -1,4 +1,5 @@
 HELP.md
+design.md
 target/
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
@@ -69,8 +70,8 @@ mvnw.cmd
 .env.production
 *.env
 
-# Application properties with secrets
-application-dev.yml
+# Local-only Spring overrides with secrets
+application-local.yml
 
 # AWS credentials
 *.pem
